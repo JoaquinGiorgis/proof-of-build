@@ -107,15 +107,19 @@ export async function POST(request: Request) {
     if (!event) {
       return NextResponse.json({ error: "unknown event" }, { status: 404 });
     }
-    // The track is signed, but it still has to be one this event runs — a
-    // stale link from before a track was renamed should fail loudly.
-    if (!event.tracks.some((track) => track.slug === payload.tr)) {
-      return NextResponse.json(
-        { error: "That link points at a track this event no longer has." },
-        { status: 409 },
-      );
-    }
-
+    // The track is not checked against our list on purpose.
+    //
+    // It used to be, and it refused the claim when the two disagreed. That was
+    // backwards: the event signed this link, and the event is the authority on
+    // its own tracks — our table is a copy of theirs, so a disagreement means
+    // our copy is stale, not that the builder is lying. The track is a label
+    // on a credential, not a permission; the signature already proves who said
+    // it. Turning a builder away from a credential they earned because we are
+    // holding a renamed slug is the worst possible reading of that.
+    //
+    // An unknown slug still reaches the card and the metadata — it is
+    // displayed raw where a nicer name is missing, which is exactly what the
+    // event called it.
     draft = {
       eventSlug: event.slug,
       name: payload.n,
