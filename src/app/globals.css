@@ -77,9 +77,14 @@
   color-scheme: dark;
 }
 
+/* The background lives on <html> only. A background on <body> paints *after*
+   negative-z-index descendants, which would bury the fixed shader layer. */
+html {
+  background: var(--color-bg-0);
+}
+
 html,
 body {
-  background: var(--color-bg-0);
   color: var(--color-text-primary);
 }
 

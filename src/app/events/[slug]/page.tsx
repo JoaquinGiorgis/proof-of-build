@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { SiteFooter } from "@/components/site-footer";
 import { ClaimProofCta } from "@/components/claim-proof-cta";
 import { Badge } from "@/components/ui/primitives";
@@ -25,8 +24,7 @@ export default async function EventPage({ params }: PageProps<"/events/[slug]">)
 
   return (
     <>
-      <section className="relative isolate overflow-hidden">
-        <ShaderBackdrop />
+      <section className="relative overflow-hidden">
 
         <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-16 px-5 pt-[160px] pb-20 md:px-20 lg:grid-cols-[minmax(0,600px)_minmax(0,600px)] lg:pt-[220px]">
           <div className="animate-rise flex flex-col items-start gap-7">

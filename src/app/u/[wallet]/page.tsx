@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { ProfileView } from "@/components/profile-view";
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { getProfile, listEvents } from "@/lib/queries";
 
 export default async function BuilderProfilePage({
@@ -14,8 +13,7 @@ export default async function BuilderProfilePage({
   if (!profile) notFound();
 
   return (
-    <div className="relative isolate">
-      <ShaderBackdrop className="opacity-40" height="h-[560px]" />
+    <div className="relative">
       <ProfileView profile={profile} events={events} />
     </div>
   );

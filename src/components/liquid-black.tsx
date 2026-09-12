@@ -193,10 +193,16 @@ export function LiquidBlack({ className }: { className?: string }) {
     gl.uniform1f(u.specular, 1.0);
     gl.uniform1f(u.grain, 0.014);
 
-    // Half-res on mobile, capped at 2x elsewhere.
-    const dprCap = isMobile ? 0.5 : Math.min(window.devicePixelRatio || 1, 2);
+    // Half-res on a phone, capped at 2x elsewhere. Read per resize rather than
+    // once at mount: a window dragged from narrow to wide would otherwise keep
+    // rendering at the old scale and upsample a quarter-size canvas.
+    const scaleFactor = () =>
+      window.matchMedia("(max-width: 767px)").matches
+        ? 0.5
+        : Math.min(window.devicePixelRatio || 1, 2);
 
     const resize = () => {
+      const dprCap = scaleFactor();
       const { clientWidth: w, clientHeight: h } = canvas;
       const width = Math.max(1, Math.floor(w * dprCap));
       const height = Math.max(1, Math.floor(h * dprCap));

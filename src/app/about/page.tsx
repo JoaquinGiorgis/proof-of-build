@@ -1,4 +1,3 @@
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata = { title: "About" };
@@ -24,8 +23,7 @@ const FACTS = [
 
 export default function AboutPage() {
   return (
-    <div className="relative isolate">
-      <ShaderBackdrop className="opacity-40" height="h-[620px]" />
+    <div className="relative">
 
       <section className="mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-5 pt-[150px] pb-16 md:px-10">
         <span className="type-meta text-text-tertiary">About</span>

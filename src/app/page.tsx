@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { LiquidBlack } from "@/components/liquid-black";
 import { SiteFooter } from "@/components/site-footer";
 import { ConnectCta } from "@/components/connect-cta";
 import { ButtonLink } from "@/components/ui/button";
@@ -15,13 +14,7 @@ const STEPS = [
 export default function HomePage() {
   return (
     <>
-      <section className="relative isolate overflow-hidden">
-        {/* The shader plate sits behind the hero and fades into the page. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(1000px,110vh)]">
-          <LiquidBlack />
-          <div className="absolute inset-x-0 bottom-0 h-[35%] bg-gradient-to-b from-transparent to-black" />
-        </div>
-
+      <section className="relative overflow-hidden">
         <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-16 px-5 pt-[180px] pb-24 md:px-20 lg:grid-cols-[minmax(0,599px)_minmax(0,520px)] lg:pt-[236px] lg:pb-40">
           <div className="animate-rise flex flex-col items-start gap-7">
             <div className="flex items-center gap-3">
@@ -64,16 +57,18 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Hero asset — a liquid-chrome knot, generated for this screen. It
-              is screen-blended because the render's black is not pure 0. */}
-          <div className="relative mx-auto hidden aspect-[520/650] w-full max-w-[560px] lg:block">
+          {/* Hero asset — a liquid-chrome seal with an embossed check, the one
+              object that says what the product does. Screen-blended and masked
+              because the render's black is not pure 0: without it the plate
+              reads as a grey rectangle sitting on top of the shader. */}
+          <div className="relative mx-auto hidden aspect-[1856/2304] w-full max-w-[560px] lg:block">
             <div
               aria-hidden
               className="absolute -inset-[12%] rounded-full bg-[radial-gradient(circle,rgb(255_255_255/0.08)_0%,transparent_65%)] blur-3xl"
             />
-            <div className="animate-float absolute inset-0 mix-blend-screen [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_78%)]">
+            <div className="animate-float absolute inset-0 mix-blend-screen [mask-image:radial-gradient(ellipse_at_center,black_58%,transparent_80%)]">
               <Image
-                src="/assets/proof-of-build-hero.png"
+                src="/assets/proof-of-build-seal.png"
                 alt=""
                 fill
                 priority

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { CreateFlow } from "@/components/create/create-flow";
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { CORDOBA_HACK } from "@/lib/mock";
 import { getEvent } from "@/lib/queries";
 
@@ -13,9 +12,8 @@ export default async function CreatePage({ searchParams }: PageProps<"/create">)
   if (!event) notFound();
 
   return (
-    <div className="relative isolate">
+    <div className="relative">
       {/* "Shader · quiet" — the same plate, dialled back so the panels lead. */}
-      <ShaderBackdrop className="opacity-60" />
       <CreateFlow event={event} />
     </div>
   );

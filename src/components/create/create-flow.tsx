@@ -158,14 +158,14 @@ export function CreateFlow({ event }: { event: EventRecord }) {
               <>
                 <Field
                   label="Project name"
-                  placeholder="Room Pay"
+                  placeholder="Proof of Build"
                   value={draft.name}
                   autoFocus
                   onChange={(event) => set("name", event.target.value)}
                 />
                 <Field
                   label="One-line description"
-                  placeholder="Split shared expenses with your roommates."
+                  placeholder="A verifiable record of what you actually shipped."
                   value={draft.tagline}
                   onChange={(event) => set("tagline", event.target.value)}
                 />
@@ -176,14 +176,14 @@ export function CreateFlow({ event }: { event: EventRecord }) {
               <>
                 <Field
                   label="GitHub"
-                  placeholder="github.com/joaco/room-pay"
+                  placeholder="github.com/JoaquinGiorgis/proof-of-build"
                   value={draft.githubUrl}
                   autoFocus
                   onChange={(event) => set("githubUrl", event.target.value)}
                 />
                 <Field
                   label="Demo"
-                  placeholder="roompay.app"
+                  placeholder="proof-of-build.vercel.app"
                   hint="Optional — a link the judges can open."
                   value={draft.demoUrl}
                   onChange={(event) => set("demoUrl", event.target.value)}

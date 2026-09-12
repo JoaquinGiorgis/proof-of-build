@@ -1,5 +1,4 @@
 import { BuildRow } from "@/components/build-row";
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { SiteFooter } from "@/components/site-footer";
 import { listBuilds, listEvents } from "@/lib/queries";
 
@@ -11,8 +10,7 @@ export default async function ExplorePage() {
   const verified = builds.filter((build) => build.credential).length;
 
   return (
-    <div className="relative isolate">
-      <ShaderBackdrop className="opacity-40" height="h-[560px]" />
+    <div className="relative">
 
       <section className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-5 pt-[150px] pb-14 md:px-10">
         <span className="type-meta text-text-tertiary">Explore</span>

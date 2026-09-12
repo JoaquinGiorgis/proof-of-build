@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CredentialCard } from "@/components/credential-card";
 import { ShareBuild } from "@/components/share-build";
-import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { SiteFooter } from "@/components/site-footer";
 import { Badge } from "@/components/ui/primitives";
 import { explorerUrl, shortAddress } from "@/lib/domain";
@@ -32,8 +31,7 @@ export default async function PublicBuildPage({
     build.trackSlug;
 
   return (
-    <div className="relative isolate">
-      <ShaderBackdrop className="opacity-50" />
+    <div className="relative">
 
       <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-start gap-16 px-5 pt-[150px] pb-16 md:px-20 lg:grid-cols-[minmax(0,560px)_minmax(0,520px)]">
         <div className="animate-rise flex flex-col items-start gap-6">

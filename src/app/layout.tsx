@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ShaderBackdrop } from "@/components/shader-backdrop";
 import { SiteNav } from "@/components/site-nav";
 import { WalletModal } from "@/components/wallet/wallet-modal";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
@@ -44,7 +45,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="bg-bg-0 flex min-h-full flex-col">
+      {/* No background on <body>: it would paint over the shader layer below. */}
+      <body className="flex min-h-full flex-col">
+        {/* One shader layer for the whole site, so the material is identical
+            on every screen and at every scroll position. */}
+        <ShaderBackdrop />
         <WalletProvider>
           <SiteNav />
           <main className="flex flex-1 flex-col">{children}</main>
