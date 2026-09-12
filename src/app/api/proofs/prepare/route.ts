@@ -10,8 +10,13 @@ import {
   type ClaimFailure,
 } from "@/lib/mutations";
 import { getEvent } from "@/lib/queries";
+import { slugify } from "@/lib/slug";
 import { CLUSTER_LABEL, IS_MAINNET } from "@/lib/solana/cluster";
-import { checkPayerFunds, prepareCredential } from "@/lib/solana/credential";
+import {
+  checkPayerFunds,
+  estimateClaimCost,
+  prepareCredential,
+} from "@/lib/solana/credential";
 
 /**
  * Builds and issuer-signs a credential transaction.
@@ -83,19 +88,6 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const siteUrl = siteUrlFrom(request);
 
-  // Checked first, before the build is written and before the wallet opens:
-  // the builder pays the rent, and finding that out from a wallet that will
-  // not simulate is a bad way to learn it.
-  const funds = await checkPayerFunds(input.payer);
-  if (!funds.ok) {
-    return NextResponse.json(
-      {
-        error: `This wallet has ${formatSol(funds.lamports)} SOL on ${CLUSTER_LABEL} and the claim costs about ${formatSol(funds.needed)}.${IS_MAINNET ? " Add some SOL to it." : " Top it up at faucet.solana.com."} Check the wallet is on ${CLUSTER_LABEL}.`,
-      },
-      { status: 402 },
-    );
-  }
-
   let draft: BuildDraft;
   let buildSlug: string;
   let builderName: string;
@@ -135,6 +127,17 @@ export async function POST(request: Request) {
     };
     builderName = payload.builder;
 
+    const shortfall = await affordable({
+      draft,
+      event,
+      siteUrl,
+      // The slug this build will get. A collision suffix moves the metadata
+      // URI by two characters, which the fee margin covers.
+      buildSlug: slugify(payload.n),
+      payer: input.payer,
+    });
+    if (shortfall) return shortfall;
+
     ({ slug: buildSlug } = await upsertExternalBuild({
       source: "hackcba",
       externalId: payload.team,
@@ -172,6 +175,15 @@ export async function POST(request: Request) {
 
     draft = input.draft;
     builderName = input.draft.team[0] ?? "";
+
+    const shortfall = await affordable({
+      draft,
+      event,
+      siteUrl,
+      buildSlug: slugify(input.draft.name),
+      payer: input.payer,
+    });
+    if (shortfall) return shortfall;
 
     try {
       // Redeeming the code and writing the build happen in one transaction,
@@ -216,6 +228,38 @@ export async function POST(request: Request) {
 }
 
 /** Lamports as SOL, without a tail of zeros: 6000000n -> "0.006". */
+/**
+ * Returns a response when the builder cannot pay, and nothing when they can.
+ *
+ * Run before the build is written and before the wallet opens: the builder
+ * pays the rent, and learning that from a wallet that refuses to simulate —
+ * without being told which network it means — is a bad way to find out.
+ */
+async function affordable({
+  draft,
+  event,
+  siteUrl,
+  buildSlug,
+  payer,
+}: {
+  draft: BuildDraft;
+  event: NonNullable<Awaited<ReturnType<typeof getEvent>>>;
+  siteUrl: string;
+  buildSlug: string;
+  payer: string;
+}) {
+  const needed = await estimateClaimCost({ draft, event, siteUrl, buildSlug });
+  const funds = await checkPayerFunds(payer, needed);
+  if (funds.ok) return null;
+
+  return NextResponse.json(
+    {
+      error: `This wallet has ${formatSol(funds.lamports)} SOL on ${CLUSTER_LABEL} and this claim needs ${formatSol(funds.needed)} — almost all of it rent for the credential, which you keep.${IS_MAINNET ? "" : " Top it up at faucet.solana.com."} Check the wallet is on ${CLUSTER_LABEL}.`,
+    },
+    { status: 402 },
+  );
+}
+
 function formatSol(lamports: bigint) {
   const sol = Number(lamports) / 1_000_000_000;
   return sol === 0 ? "0" : sol.toFixed(4).replace(/\.?0+$/, "");

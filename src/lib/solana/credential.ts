@@ -17,6 +17,7 @@ import {
 import {
   AuthorityType,
   extension,
+  getMintSize,
   getCreateMintInstructionPlan,
   getMintToATAInstructionPlanAsync,
   getSetAuthorityInstruction,
@@ -24,7 +25,6 @@ import {
 import type { BuildDraft } from "@/lib/build-draft";
 import type { EventRecord } from "@/lib/domain";
 import { getIssuerSigner } from "./issuer";
-import { CLAIM_COST_LAMPORTS } from "./cluster";
 import { getServerClient } from "./server-client";
 
 /**
@@ -53,6 +53,53 @@ export type PreparedCredential = {
   issuer: Address;
 };
 
+/**
+ * The TokenMetadata extension for a build.
+ *
+ * Shared with the cost estimate on purpose: the metadata is stored *inside*
+ * the mint account, so its length is what the rent is charged on. Estimating
+ * the cost from anything other than the exact bytes we are about to write
+ * gives a number that is wrong in the direction that hurts — the builder gets
+ * waved through and the wallet rejects them.
+ */
+function buildMetadata({
+  draft,
+  event,
+  siteUrl,
+  buildSlug,
+  updateAuthority,
+  mint,
+}: {
+  draft: BuildDraft;
+  event: EventRecord;
+  siteUrl: string;
+  buildSlug: string;
+  updateAuthority: Address;
+  mint: Address;
+}) {
+  const track =
+    event.tracks.find((item) => item.slug === draft.trackSlug)?.name ??
+    draft.trackSlug;
+
+  return extension("TokenMetadata", {
+    updateAuthority,
+    mint,
+    name: truncate(draft.name, 32),
+    symbol: "POB",
+    uri: `${siteUrl}/api/proofs/${buildSlug}/metadata`,
+    additionalMetadata: new Map<string, string>([
+      ["event", `${event.name} ${event.year}`],
+      ["issuer", event.issuer],
+      ["track", track],
+      ["team", draft.team.join(" · ")],
+      ["tagline", truncate(draft.tagline, 140)],
+      ...(draft.githubUrl ? ([["github", draft.githubUrl]] as const) : []),
+      ...(draft.demoUrl ? ([["demo", draft.demoUrl]] as const) : []),
+      ["proof", `${siteUrl}/b/${buildSlug}`],
+    ]),
+  });
+}
+
 export async function prepareCredential({
   draft,
   event,
@@ -72,26 +119,13 @@ export async function prepareCredential({
   const feePayer = createNoopSigner(address(payer));
   const mint = await generateKeyPairSigner();
 
-  const track =
-    event.tracks.find((item) => item.slug === draft.trackSlug)?.name ??
-    draft.trackSlug;
-
-  const metadata = extension("TokenMetadata", {
+  const metadata = buildMetadata({
+    draft,
+    event,
+    siteUrl,
+    buildSlug,
     updateAuthority: issuer.address,
     mint: mint.address,
-    name: truncate(draft.name, 32),
-    symbol: "POB",
-    uri: `${siteUrl}/api/proofs/${buildSlug}/metadata`,
-    additionalMetadata: new Map<string, string>([
-      ["event", `${event.name} ${event.year}`],
-      ["issuer", event.issuer],
-      ["track", track],
-      ["team", draft.team.join(" · ")],
-      ["tagline", truncate(draft.tagline, 140)],
-      ...(draft.githubUrl ? ([["github", draft.githubUrl]] as const) : []),
-      ...(draft.demoUrl ? ([["demo", draft.demoUrl]] as const) : []),
-      ["proof", `${siteUrl}/b/${buildSlug}`],
-    ]),
   });
 
   const createMintPlan = await getCreateMintInstructionPlan(client, {
@@ -231,24 +265,89 @@ function sleep(ms: number) {
 }
 
 /**
+ * What this particular claim costs, asked of the cluster rather than assumed.
+ *
+ * Almost all of it is rent for the mint account, and the mint carries the
+ * metadata inline — so a longer tagline or a longer repo URL genuinely costs
+ * more. A fixed constant was wrong for every build that was not the one it was
+ * measured on, and wrong low is the bad direction: the builder is told they
+ * can pay, and then the wallet refuses.
+ *
+ * Phantom's summary line shows only the signature fee — 0.00002 SOL — which is
+ * the smallest part of this and the reason the number there looks nothing like
+ * the number we quote.
+ */
+export async function estimateClaimCost({
+  draft,
+  event,
+  siteUrl,
+  buildSlug,
+}: {
+  draft: BuildDraft;
+  event: EventRecord;
+  siteUrl: string;
+  buildSlug: string;
+}): Promise<bigint> {
+  const client = getServerClient();
+  const issuer = await getIssuerSigner();
+
+  // A placeholder mint of the right shape: only the byte count matters here.
+  const metadata = buildMetadata({
+    draft,
+    event,
+    siteUrl,
+    buildSlug,
+    updateAuthority: issuer.address,
+    mint: issuer.address,
+  });
+
+  const mintSize = getMintSize([
+    extension("MetadataPointer", {
+      authority: issuer.address,
+      metadataAddress: issuer.address,
+    }),
+    extension("NonTransferable", {}),
+    metadata,
+  ]);
+
+  const [mintRent, tokenRent] = await Promise.all([
+    client.getMinimumBalance(mintSize),
+    client.getMinimumBalance(TOKEN_ACCOUNT_SIZE),
+  ]);
+
+  return BigInt(mintRent) + BigInt(tokenRent) + FEE_MARGIN_LAMPORTS;
+}
+
+/**
+ * Token-2022 account with ImmutableOwner and NonTransferableAccount: the 165
+ * byte base, one byte of account type, and a four byte header per extension.
+ * Measured against a real claim — 174 bytes is 0.001534 SOL of rent, and the
+ * 170 this used to say was 20_000 lamports short.
+ */
+const TOKEN_ACCOUNT_SIZE = 174;
+
+/**
+ * Signature fees plus a little slack. Five thousand lamports per signature and
+ * there are three, but the margin also absorbs the handful of bytes the build
+ * slug can differ by between this estimate and the write.
+ */
+const FEE_MARGIN_LAMPORTS = BigInt(200_000); // 0.0002 SOL
+
+/**
  * Checks the builder can actually pay before the wallet ever opens.
  *
  * Without this the first thing they see is Phantom refusing to simulate, which
- * says "insufficient SOL" without saying on which network — and the devnet
- * balance is the one that matters, not the mainnet one they are looking at.
+ * says "insufficient SOL" without saying on which network — and on devnet the
+ * balance that matters is not the mainnet one they are looking at.
  */
-export async function checkPayerFunds(payer: string) {
+export async function checkPayerFunds(payer: string, needed: bigint) {
   const client = getServerClient();
   const { value: lamports } = await client.rpc
     .getBalance(address(payer), { commitment: "confirmed" })
     .send();
 
-  if (lamports >= CLAIM_COST_LAMPORTS) return { ok: true as const };
-  return {
-    ok: false as const,
-    lamports,
-    needed: CLAIM_COST_LAMPORTS,
-  };
+  if (lamports >= needed) return { ok: true as const, lamports, needed };
+  return { ok: false as const, lamports, needed };
 }
 
 /** Token-2022 metadata caps `name` at 32 bytes; the rest we keep sane by hand. */

@@ -41,10 +41,16 @@ export const DEFAULT_RPC_URL = IS_MAINNET
   : "https://api.devnet.solana.com";
 
 /**
- * What the builder pays to claim: rent for the Token-2022 mint (three
- * extensions with the metadata inline) and for their token account, plus the
- * fee. Shown on the button and enforced in `checkPayerFunds`, from here, so
- * the number the page promises and the number the server demands cannot drift.
+ * The figure shown on the claim button, rounded up from what the cluster
+ * actually charges: about 0.0052 SOL of rent for the mint (the metadata lives
+ * inside it), 0.0015 for the token account, and 0.00002 in fees.
+ *
+ * It is a label, not a rule. The real amount depends on how long this build's
+ * metadata is, and the server works it out per build in `estimateClaimCost` —
+ * quoting one number and enforcing another is what let a builder through only
+ * for the wallet to refuse them.
+ *
+ * Nearly all of it is rent, which stays with the credential and comes back if
+ * the account is ever closed. It is not a fee anyone collects.
  */
-export const CLAIM_COST_SOL = 0.006;
-export const CLAIM_COST_LAMPORTS = BigInt(Math.round(CLAIM_COST_SOL * 1e9));
+export const CLAIM_COST_SOL = 0.007;
