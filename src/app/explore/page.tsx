@@ -1,6 +1,5 @@
 import { BuildRow } from "@/components/build-row";
 import { SiteFooter } from "@/components/site-footer";
-import { isOnchain } from "@/lib/domain";
 import { listBuilds, listEvents } from "@/lib/queries";
 
 export const metadata = { title: "Explore" };
@@ -8,7 +7,12 @@ export const metadata = { title: "Explore" };
 export default async function ExplorePage() {
   const [builds, events] = await Promise.all([listBuilds(), listEvents()]);
   const byEvent = new Map(events.map((event) => [event.slug, event]));
-  const verified = builds.filter(isOnchain).length;
+  // Proofs, not projects: a team of four ships one build and carries four
+  // credentials, and the label says "proofs".
+  const proofs = builds.reduce(
+    (total, build) => total + build.credentials.length,
+    0,
+  );
 
   return (
     <div className="relative">
@@ -20,7 +24,7 @@ export default async function ExplorePage() {
             Everything that shipped.
           </h1>
           <div className="flex flex-col items-start gap-2 md:items-end">
-            <span className="type-h1 text-text-primary">{verified}</span>
+            <span className="type-h1 text-text-primary">{proofs}</span>
             <span className="type-meta text-text-tertiary">
               Proofs onchain
             </span>

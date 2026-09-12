@@ -1,6 +1,16 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import type {
   Build,
@@ -62,11 +72,27 @@ export async function getEvent(slug: string): Promise<EventRecord | null> {
  */
 const isLive = isNull(schema.builds.archivedAt);
 
+/**
+ * Has at least one credential. A build row is written during `prepare`, before
+ * the builder has signed anything, because the slug has to exist to go into
+ * the metadata URI. If they close the tab there, the row stays — and a list
+ * headed "Everything that shipped" would be advertising a project that never
+ * did. Shipping is a credential onchain; until then there is nothing to show.
+ */
+function hasCredential() {
+  return exists(
+    getDb()
+      .select({ one: sql`1` })
+      .from(schema.credentials)
+      .where(eq(schema.credentials.buildSlug, schema.builds.slug)),
+  );
+}
+
 export async function listBuilds(options?: {
   eventSlug?: string;
   trackSlug?: string;
 }): Promise<Build[]> {
-  const filters = [isLive];
+  const filters = [isLive, hasCredential()];
   if (options?.eventSlug) {
     filters.push(eq(schema.builds.eventSlug, options.eventSlug));
   }
