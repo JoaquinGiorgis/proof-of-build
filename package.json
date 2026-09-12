@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.mts",
     "claim:link": "tsx scripts/claim-link.mts",
-    "claim:cost": "tsx scripts/claim-cost.mts"
+    "claim:cost": "tsx scripts/claim-cost.mts",
+    "build:archive": "tsx scripts/build-archive.mts"
   },
   "dependencies": {
     "@solana-program/compute-budget": "^0.18.1",

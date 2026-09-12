@@ -225,11 +225,11 @@ export async function upsertExternalBuild({
   trackSlug: string;
   githubUrl: string | null;
   demoUrl: string | null;
-}): Promise<{ slug: string }> {
+}): Promise<{ slug: string; archived: boolean }> {
   const db = getDb();
 
   const [existing] = await db
-    .select({ slug: schema.builds.slug })
+    .select({ slug: schema.builds.slug, archivedAt: schema.builds.archivedAt })
     .from(schema.builds)
     .where(
       and(
@@ -239,7 +239,11 @@ export async function upsertExternalBuild({
     )
     .limit(1);
 
-  if (existing) return existing;
+  // Archived is reported rather than acted on here: this function's job is to
+  // say which build a link maps to, and the route decides what that means.
+  if (existing) {
+    return { slug: existing.slug, archived: existing.archivedAt !== null };
+  }
 
   const base = slugify(name);
   for (let attempt = 0; attempt < 20; attempt++) {
@@ -262,7 +266,7 @@ export async function upsertExternalBuild({
       .onConflictDoNothing({ target: schema.builds.slug })
       .returning({ slug: schema.builds.slug });
 
-    if (row) return row;
+    if (row) return { slug: row.slug, archived: false };
   }
 
   throw new Error("Could not find a free slug for this build.");

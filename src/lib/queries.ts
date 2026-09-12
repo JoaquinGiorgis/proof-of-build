@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import type {
   Build,
@@ -56,20 +56,34 @@ export async function getEvent(slug: string): Promise<EventRecord | null> {
   return toEvent(event, trackRows);
 }
 
+/**
+ * Live builds only. Archived ones are still readable one at a time — see
+ * `getBuild` — they just stop counting as projects anybody is being shown.
+ */
+const isLive = isNull(schema.builds.archivedAt);
+
 export async function listBuilds(options?: {
   eventSlug?: string;
   trackSlug?: string;
 }): Promise<Build[]> {
-  const filters = [];
+  const filters = [isLive];
   if (options?.eventSlug) {
     filters.push(eq(schema.builds.eventSlug, options.eventSlug));
   }
   if (options?.trackSlug) {
     filters.push(eq(schema.builds.trackSlug, options.trackSlug));
   }
-  return selectBuilds(filters.length ? and(...filters) : undefined);
+  return selectBuilds(and(...filters));
 }
 
+/**
+ * One build by slug, archived or not.
+ *
+ * Deliberately not filtered. A minted credential's metadata URI names this
+ * slug and can never be changed, so the page behind it has to keep answering
+ * — it just says it is archived. Everything else is a listing, and listings
+ * filter.
+ */
 export async function getBuild(slug: string): Promise<Build | null> {
   const [build] = await selectBuilds(eq(schema.builds.slug, slug));
   return build ?? null;
@@ -99,9 +113,12 @@ export async function listBuildsByWallet(wallet: string): Promise<Build[]> {
 
   if (claimed.length === 0) return [];
   return selectBuilds(
-    inArray(
-      schema.builds.slug,
-      claimed.map((row) => row.buildSlug),
+    and(
+      isLive,
+      inArray(
+        schema.builds.slug,
+        claimed.map((row) => row.buildSlug),
+      ),
     ),
   );
 }
@@ -190,6 +207,7 @@ function toBuild(build: BuildRow, credentials: CredentialRow[]): Build {
     wallet: build.wallet,
     builderName: build.builderName,
     status: build.status as BuildStatus,
+    archived: build.archivedAt !== null,
     credentials: credentials.map(toCredential),
     createdAt: build.createdAt.toISOString(),
   };

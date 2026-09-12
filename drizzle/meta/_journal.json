@@ -50,6 +50,13 @@
       "when": 1789225097446,
       "tag": "0006_many_credentials_per_build",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789234157043,
+      "tag": "0007_cooing_praxagora",
+      "breakpoints": true
     }
   ]
 }

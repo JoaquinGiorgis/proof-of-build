@@ -1,0 +1,1 @@
+ALTER TABLE "builds" ADD COLUMN "archived_at" timestamp with time zone;

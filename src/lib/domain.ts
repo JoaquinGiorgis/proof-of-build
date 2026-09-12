@@ -45,6 +45,12 @@ export type Build = {
   builderName: string | null;
   status: BuildStatus;
   /**
+   * Out of the listings, still at its own URL. Credentials already minted
+   * against it stay valid — the chain does not care that we stopped featuring
+   * the project, and their metadata points here permanently.
+   */
+  archived: boolean;
+  /**
    * Every credential claimed against this build — one per builder. A team
    * ships one project and each member carries their own proof of it.
    */

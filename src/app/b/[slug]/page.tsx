@@ -37,11 +37,17 @@ export default async function PublicBuildPage({
 
       <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-start gap-16 px-5 pt-[150px] pb-16 md:px-20 lg:grid-cols-[minmax(0,560px)_minmax(0,520px)]">
         <div className="animate-rise flex flex-col items-start gap-6">
-          {onchain ? (
-            <Badge>Verified onchain</Badge>
-          ) : (
-            <Badge dot={false}>Not yet onchain</Badge>
-          )}
+          {/* Archived says the project is no longer listed, not that the
+              credentials are void — they are onchain and nothing here can
+              touch them. Saying both at once is the honest version. */}
+          <div className="flex flex-wrap items-center gap-3">
+            {onchain ? (
+              <Badge>Verified onchain</Badge>
+            ) : (
+              <Badge dot={false}>Not yet onchain</Badge>
+            )}
+            {build.archived && <Badge dot={false}>Archived</Badge>}
+          </div>
 
           <h1 className="type-h1 text-text-primary uppercase">{build.name}</h1>
           <p className="type-body-m text-text-secondary">{build.tagline}</p>

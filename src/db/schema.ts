@@ -136,6 +136,17 @@ export const builds = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /**
+     * When this build stopped counting as a live project. Null is live.
+     *
+     * Archiving hides a build from the listings; it never deletes it, and it
+     * must not. Once a credential is minted its metadata URI points at this
+     * build's slug forever — the mint authority is revoked in the same
+     * transaction, so nothing can ever repoint it. Removing the row would
+     * leave a permanent onchain pointer at a 404 and make a credential that
+     * is still perfectly valid look broken.
+     */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [
     index("builds_wallet_idx").on(table.wallet),
