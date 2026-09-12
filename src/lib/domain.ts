@@ -26,6 +26,8 @@ export type EventRecord = {
   tracks: Track[];
   /** Public path of the event artwork used on the credential card. */
   artwork: string | null;
+  /** The event's own poster, used on the event page and the events index. */
+  cover: string | null;
 };
 
 export type Build = {

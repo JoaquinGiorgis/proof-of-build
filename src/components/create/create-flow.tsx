@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { TrackChip } from "@/components/ui/primitives";
+import { ClaimGate } from "./claim-gate";
 import { ProofPreview } from "./proof-preview";
 
 /**
@@ -38,6 +39,9 @@ export function CreateFlow({ event }: { event: EventRecord }) {
   });
   const [teamInput, setTeamInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Held in memory only. It is re-checked and spent server-side, so keeping it
+  // in a cookie or localStorage would buy nothing and leak the event's secret.
+  const [claimCode, setClaimCode] = useState<string | null>(null);
 
   const set = <K extends keyof BuildDraft>(key: K, value: BuildDraft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -75,8 +79,19 @@ export function CreateFlow({ event }: { event: EventRecord }) {
     setStep((current) => Math.max(current - 1, 0));
   };
 
+  if (!claimCode) {
+    return <ClaimGate event={event} onUnlock={setClaimCode} />;
+  }
+
   if (step === 4) {
-    return <ProofPreview draft={draft} event={event} onBack={back} />;
+    return (
+      <ProofPreview
+        draft={draft}
+        event={event}
+        claimCode={claimCode}
+        onBack={back}
+      />
+    );
   }
 
   return (

@@ -124,6 +124,7 @@ function toEvent(event: EventRow, trackRows: TrackRow[]): EventRecord {
     startsAt: event.startsAt.toISOString().slice(0, 10),
     endsAt: event.endsAt.toISOString().slice(0, 10),
     artwork: event.artwork,
+    cover: event.cover,
     tracks: trackRows.map((track) => ({ slug: track.slug, name: track.name })),
   };
 }

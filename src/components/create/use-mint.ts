@@ -45,7 +45,7 @@ export function useMint() {
   }, []);
 
   const start = useCallback(
-    async ({ draft }: { draft: BuildDraft }) => {
+    async ({ draft, claimCode }: { draft: BuildDraft; claimCode: string }) => {
       cancelled.current = false;
       setError(null);
       setResult(null);
@@ -67,6 +67,7 @@ export function useMint() {
         }>("/api/proofs/prepare", {
           draft,
           payer: connected.account.address,
+          claimCode,
         });
         if (cancelled.current) return;
 

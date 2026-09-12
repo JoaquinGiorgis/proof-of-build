@@ -2,6 +2,7 @@ import Image from "next/image";
 import { SiteFooter } from "@/components/site-footer";
 import { ConnectCta } from "@/components/connect-cta";
 import { ButtonLink } from "@/components/ui/button";
+import { listEvents } from "@/lib/queries";
 
 /** Figma: 01 Home · Desktop 5:2. */
 
@@ -11,7 +12,13 @@ const STEPS = [
   { label: "03 — Keep", title: "Carry your proof anywhere." },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // The eyebrow names the most recent issuer rather than a hardcoded event —
+  // this is a platform, and the landing should say so when a second event
+  // shows up.
+  const events = await listEvents();
+  const featured = events[0];
+
   return (
     <>
       <section className="relative overflow-hidden">
@@ -23,7 +30,9 @@ export default function HomePage() {
                 className="h-px w-7 bg-[rgb(255_255_255/0.45)]"
               />
               <span className="type-meta-l text-text-tertiary">
-                Córdoba Hack 2026 · Naranja X
+                {featured
+                  ? `${featured.name} ${featured.year} · ${featured.issuer}`
+                  : "Onchain credentials for hackathons"}
               </span>
             </div>
 
@@ -44,7 +53,7 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-wrap items-center gap-5">
-              <ConnectCta />
+              <ConnectCta connectedLabel="Claim your Proof" connectedHref="/events" />
               <ButtonLink href="/explore" variant="ghost">
                 Explore builds
                 <span

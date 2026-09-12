@@ -15,6 +15,27 @@
       "when": 1789222138809,
       "tag": "0001_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789223966850,
+      "tag": "0002_sad_exodus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789223975875,
+      "tag": "0003_claim_code_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789224175571,
+      "tag": "0004_common_nextwave",
+      "breakpoints": true
     }
   ]
 }

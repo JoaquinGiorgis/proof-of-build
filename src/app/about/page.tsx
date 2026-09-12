@@ -16,6 +16,14 @@ const FACTS = [
     body: "The issuer signs the credential on the server; you sign as the fee payer from your own wallet. Your keys never leave it, and we never hold them.",
   },
   {
+    label: "Who can claim",
+    body: "Only someone the event gave a code to. An issuer's signature is the whole value of a proof, so it is not handed to whoever shows up with a wallet — and one wallet gets one build per event.",
+  },
+  {
+    label: "Who can issue",
+    body: "Events are added to the platform deliberately, not by signing up. Each one signs its own credentials and hands out its own codes.",
+  },
+  {
     label: "Which network",
     body: "Solana devnet. Nobody deploys a hackathon project to mainnet.",
   },

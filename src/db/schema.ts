@@ -38,8 +38,10 @@ export const events = pgTable("events", {
   location: text("location").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-  /** Public path or URL of the credential artwork. */
+  /** Public path or URL of the credential artwork — what goes on the card. */
   artwork: text("artwork"),
+  /** The event's own poster. Used on the event page and the events index. */
+  cover: text("cover"),
   /** The issuer's onchain address — the key that signs every credential. */
   issuerAddress: varchar("issuer_address", { length: 44 }),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -62,6 +64,37 @@ export const tracks = pgTable(
   ],
 );
 
+/**
+ * What lets a builder claim an event's credential.
+ *
+ * The issuer's signature is the whole value of the product, so it cannot be
+ * handed to whoever shows up with a wallet. The event shares a code — on a
+ * slide, in its Discord, on a badge — and only a holder of that code gets a
+ * credential signed by that issuer.
+ *
+ * A code is a bearer token: if it leaks, it leaks. `maxUses` and `expiresAt`
+ * bound the damage, and a build is limited to one per wallet per event.
+ */
+export const claimCodes = pgTable(
+  "claim_codes",
+  {
+    /** Stored uppercase; lookups uppercase the input before matching. */
+    code: varchar("code", { length: 32 }).primaryKey(),
+    eventSlug: varchar("event_slug", { length: 64 })
+      .notNull()
+      .references(() => events.slug, { onDelete: "cascade" }),
+    label: text("label"),
+    maxUses: integer("max_uses").notNull().default(100),
+    uses: integer("uses").notNull().default(0),
+    /** Null means it never expires on its own. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("claim_codes_event_slug_idx").on(table.eventSlug)],
+);
+
 export const builds = pgTable(
   "builds",
   {
@@ -80,6 +113,11 @@ export const builds = pgTable(
     wallet: varchar("wallet", { length: 44 }).notNull(),
     builderName: text("builder_name").notNull(),
     status: buildStatus("status").notNull().default("draft"),
+    /** Which code authorised this build — kept so an issuer can audit. */
+    claimCode: varchar("claim_code", { length: 32 }).references(
+      () => claimCodes.code,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -116,3 +154,4 @@ export type EventRow = typeof events.$inferSelect;
 export type TrackRow = typeof tracks.$inferSelect;
 export type BuildRow = typeof builds.$inferSelect;
 export type CredentialRow = typeof credentials.$inferSelect;
+export type ClaimCodeRow = typeof claimCodes.$inferSelect;

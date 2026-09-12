@@ -59,14 +59,27 @@ source.
 
 ## How a proof is issued
 
-1. `POST /api/proofs/prepare` — the server re-validates the draft, builds the
-   Token-2022 transaction and signs it as the **issuer** and as the new **mint**.
-   The issuer key never leaves the server.
-2. The browser's wallet adds the **fee-payer** signature and broadcasts it. The
+A credential carries the event's signature, so it is not handed to whoever
+shows up with a wallet.
+
+1. The event hands its builders a **claim code** (`claim_codes`). Codes are
+   bounded by `max_uses` and `expires_at`, and a wallet gets one build per
+   event — so a leaked code has a ceiling.
+2. `POST /api/proofs/prepare` — the server re-validates the draft, **redeems
+   the code and writes the build in one transaction**, then builds the
+   Token-2022 transaction and signs it as the **issuer** and as the new
+   **mint**. The issuer key never leaves the server. Redeeming is a single
+   conditional `UPDATE`, so two builders racing for a code's last use cannot
+   both win.
+3. The browser's wallet adds the **fee-payer** signature and broadcasts it. The
    builder pays the fee and the rent (~0.002 SOL). Their key never leaves the
    wallet.
-3. `POST /api/proofs/confirm` — the server checks the signature actually landed
-   and succeeded **before** anything is recorded. A signature is not a proof.
+4. `POST /api/proofs/confirm` — the server checks the signature landed,
+   succeeded, **and involves the mint we issued**, before anything is recorded.
+   A signature is not a proof.
+
+Events are added by seed, never self-serve: put one in `src/lib/mock.ts` and
+run `pnpm db:seed`. Re-seeding never refunds spent code uses.
 
 ## Design
 

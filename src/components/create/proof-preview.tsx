@@ -14,10 +14,12 @@ import { ProofCreated } from "./proof-created";
 export function ProofPreview({
   draft,
   event,
+  claimCode,
   onBack,
 }: {
   draft: BuildDraft;
   event: EventRecord;
+  claimCode: string;
   onBack: () => void;
 }) {
   const { address, openModal } = useWallet();
@@ -87,7 +89,7 @@ export function ProofPreview({
             <Button
               className="px-8 py-[18px] text-[17px]"
               onClick={() =>
-                address ? mint.start({ draft }) : openModal()
+                address ? mint.start({ draft, claimCode }) : openModal()
               }
             >
               {address ? "Claim Proof" : "Connect wallet"}

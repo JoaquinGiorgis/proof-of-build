@@ -10,6 +10,7 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 /** Figma: Navbar 5:10 — a 56px liquid-glass pill, inset 40px from the edges. */
 
 const LINKS = [
+  { href: "/events", label: "Events" },
   { href: "/explore", label: "Explore" },
   { href: "/builds", label: "My Builds" },
   { href: "/about", label: "About" },
@@ -21,7 +22,7 @@ export function SiteNav() {
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-5 pt-5 md:px-10 md:pt-6">
-      <nav className="glass pointer-events-auto mx-auto flex h-14 w-full max-w-[1360px] items-center justify-between rounded-full py-2 pr-2 pl-5 md:pl-6">
+      <nav className="glass glass-nav pointer-events-auto mx-auto flex h-14 w-full max-w-[1360px] items-center justify-between rounded-full py-2 pr-2 pl-5 md:pl-6">
         <Link
           href="/"
           className="focus-ring rounded-full text-[15px] leading-none font-medium tracking-[-0.033em] text-white"

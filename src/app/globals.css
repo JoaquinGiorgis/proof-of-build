@@ -206,6 +206,13 @@ body {
   }
 }
 
+/* The navbar is fixed over scrolling content, so the 3.5% fill of plain glass
+   lets 128px hero type read straight through it. 5% is enough to settle it
+   without turning the pill into a solid bar. */
+@utility glass-nav {
+  background: rgb(255 255 255 / 0.05);
+}
+
 @utility glass-hover {
   &:hover {
     background: rgb(255 255 255 / 0.06);

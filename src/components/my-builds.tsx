@@ -92,7 +92,7 @@ function BuildsList({ wallet }: { wallet: string }) {
         <p className="type-body-m text-text-tertiary">
           Nothing registered under this wallet yet.
         </p>
-        <ButtonLink href="/create">Register a build</ButtonLink>
+        <ButtonLink href="/events">Find your event</ButtonLink>
       </div>
     );
   }
