@@ -62,7 +62,6 @@ export default async function EventPage({ params }: PageProps<"/events/[slug]">)
                   light, and running both reads as two effects fighting. */}
               <NinjaTurntable
                 poster={event.artwork}
-                mp4="/assets/ninja-360/ninja-spin.mp4"
                 webm="/assets/ninja-360/ninja-spin.webm"
                 alt={`${event.name} ${event.year} credential artwork`}
                 priority

@@ -34,7 +34,6 @@ function prefersMotion() {
  */
 export function NinjaTurntable({
   poster,
-  mp4,
   webm,
   alt = "",
   className,
@@ -42,8 +41,14 @@ export function NinjaTurntable({
   priority = false,
 }: {
   poster: string;
-  mp4: string;
-  webm?: string;
+  /**
+   * VP9 WebM with a real alpha channel. There is deliberately no MP4
+   * companion: MP4 cannot carry alpha, so it would arrive on an opaque black
+   * plate and paint a rectangle over whatever is behind it. Where VP9 alpha
+   * is not supported the video simply never plays and the still stays — which
+   * is the correct picture, just not turning.
+   */
+  webm: string;
   alt?: string;
   className?: string;
   sizes?: string;
@@ -73,12 +78,12 @@ export function NinjaTurntable({
   }, [motion]);
 
   return (
-    /* The blend lives here, on the outermost element, and not on the <video>.
-       An ancestor with a transform — `animate-float`, say — creates a stacking
-       context, and a blend inside one composites against that context rather
-       than against the page. The video would then screen against nothing and
-       its opaque black plate would sit as a rectangle over the shader. */
-    <div className={cn("relative mix-blend-screen", className)}>
+    /* No blend mode anywhere. The first attempt screen-blended an opaque video
+       to drop its black plate, and that turned into a chase: the blend has to
+       sit outside every transformed ancestor or it composites against the
+       wrong backdrop, and even then a black that is a couple of levels off
+       zero lifts the whole rectangle. A real alpha channel ends the argument. */
+    <div className={cn("relative", className)}>
       <Image
         src={poster}
         alt={alt}
@@ -108,8 +113,7 @@ export function NinjaTurntable({
             playing ? "opacity-100" : "opacity-0",
           )}
         >
-          {webm && <source src={webm} type="video/webm" />}
-          <source src={mp4} type="video/mp4" />
+          <source src={webm} type="video/webm" />
         </video>
       )}
     </div>
