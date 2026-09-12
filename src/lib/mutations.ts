@@ -104,6 +104,22 @@ export async function createBuildDraft({
       throw new ClaimError(peek.ok ? "exhausted" : peek.reason);
     }
 
+    // One registration per wallet per event on this path. It used to be a
+    // unique index, but that had to go when a build stopped belonging to a
+    // single wallet — so it is checked here, inside the transaction that
+    // spent the use, and a failure refunds it.
+    const [already] = await tx
+      .select({ slug: schema.builds.slug })
+      .from(schema.builds)
+      .where(
+        and(
+          eq(schema.builds.eventSlug, draft.eventSlug),
+          sql`lower(${schema.builds.wallet}) = lower(${wallet})`,
+        ),
+      )
+      .limit(1);
+    if (already) throw new ClaimError("already-claimed");
+
     for (let attempt = 0; attempt < 20; attempt++) {
       const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
       try {
@@ -128,8 +144,8 @@ export async function createBuildDraft({
 
         if (row) return row;
       } catch (cause) {
-        // The (event, wallet) unique index — this wallet already has a build
-        // at this event. Rolls back the spent use with the transaction.
+        // A unique we did not anticipate. Rolls the spent use back with the
+        // transaction rather than burning it on a failure that is ours.
         if (isUniqueViolation(cause)) throw new ClaimError("already-claimed");
         throw cause;
       }
@@ -165,22 +181,103 @@ function isUniqueViolation(cause: unknown) {
 }
 
 /**
- * Writes the credential once the signature is confirmed onchain.
+ * Upserts the build a signed claim link describes.
  *
- * The unique index on `signature` is what makes this safe to call twice: a
- * retried confirm resolves to the same row instead of minting a second record.
- * Returns null when the build does not belong to this wallet — a confirm for
- * somebody else's build is not an error to explain, it is a request to ignore.
+ * Keyed on the team's id in the event's system, so four teammates opening four
+ * links land on one project rather than four copies of it. The project's
+ * details are refreshed each time: the event's system is the source of truth
+ * for what the team shipped, and a teammate claiming later should not get a
+ * stale snapshot.
+ */
+export async function upsertExternalBuild({
+  source,
+  externalId,
+  eventSlug,
+  name,
+  tagline,
+  team,
+  trackSlug,
+  githubUrl,
+  demoUrl,
+}: {
+  source: "hackcba";
+  externalId: string;
+  eventSlug: string;
+  name: string;
+  tagline: string;
+  team: string[];
+  trackSlug: string;
+  githubUrl: string | null;
+  demoUrl: string | null;
+}): Promise<{ slug: string }> {
+  const db = getDb();
+
+  const [existing] = await db
+    .select({ slug: schema.builds.slug })
+    .from(schema.builds)
+    .where(
+      and(
+        eq(schema.builds.source, source),
+        eq(schema.builds.externalId, externalId),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(schema.builds)
+      .set({ name, tagline, team, trackSlug, githubUrl, demoUrl })
+      .where(eq(schema.builds.slug, existing.slug));
+    return existing;
+  }
+
+  const base = slugify(name);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+    const [row] = await db
+      .insert(schema.builds)
+      .values({
+        slug,
+        name,
+        tagline,
+        team,
+        trackSlug,
+        eventSlug,
+        githubUrl,
+        demoUrl,
+        status: "ready",
+        source,
+        externalId,
+      })
+      .onConflictDoNothing({ target: schema.builds.slug })
+      .returning({ slug: schema.builds.slug });
+
+    if (row) return row;
+  }
+
+  throw new Error("Could not find a free slug for this build.");
+}
+
+/**
+ * Writes a builder's credential once the signature is confirmed onchain.
+ *
+ * Many credentials hang off one build — a team ships one project and each
+ * member claims their own. Two uniques make this safe to call twice: on
+ * `signature`, so a retried confirm resolves to the same row rather than
+ * recording a second mint; and on (build, wallet), so a builder who claims
+ * twice gets back the credential they already hold.
  */
 export async function recordCredential({
   buildSlug,
   wallet,
+  builderName,
   mint,
   signature,
   cluster,
 }: {
   buildSlug: string;
   wallet: string;
+  builderName: string;
   mint: string;
   signature: string;
   cluster: "devnet" | "mainnet-beta";
@@ -190,21 +287,16 @@ export async function recordCredential({
   const [build] = await db
     .select({ slug: schema.builds.slug })
     .from(schema.builds)
-    .where(
-      and(
-        eq(schema.builds.slug, buildSlug),
-        sql`lower(${schema.builds.wallet}) = lower(${wallet})`,
-      ),
-    )
+    .where(eq(schema.builds.slug, buildSlug))
     .limit(1);
   if (!build) return null;
 
   const [credential] = await db
     .insert(schema.credentials)
-    .values({ mint, buildSlug, signature, cluster })
+    .values({ mint, buildSlug, wallet, builderName, signature, cluster })
     .onConflictDoUpdate({
       target: schema.credentials.signature,
-      set: { mint, buildSlug },
+      set: { mint, buildSlug, wallet, builderName },
     })
     .returning({ issuedAt: schema.credentials.issuedAt });
 
@@ -214,6 +306,22 @@ export async function recordCredential({
     .where(eq(schema.builds.slug, buildSlug));
 
   return credential ?? null;
+}
+
+/** The credential this wallet already holds against a build, if any. */
+export async function findCredential(buildSlug: string, wallet: string) {
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(schema.credentials)
+    .where(
+      and(
+        eq(schema.credentials.buildSlug, buildSlug),
+        sql`lower(${schema.credentials.wallet}) = lower(${wallet})`,
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 /** Marks a build as failed so it does not sit in `ready` forever. */

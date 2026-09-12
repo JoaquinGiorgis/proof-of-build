@@ -60,23 +60,34 @@ source.
 ## How a proof is issued
 
 A credential carries the event's signature, so it is not handed to whoever
-shows up with a wallet.
+shows up with a wallet. There are two ways in, and one Solana path.
 
-1. The event hands its builders a **claim code** (`claim_codes`). Codes are
-   bounded by `max_uses` and `expires_at`, and a wallet gets one build per
-   event — so a leaked code has a ceiling.
-2. `POST /api/proofs/prepare` — the server re-validates the draft, **redeems
-   the code and writes the build in one transaction**, then builds the
-   Token-2022 transaction and signs it as the **issuer** and as the new
-   **mint**. The issuer key never leaves the server. Redeeming is a single
-   conditional `UPDATE`, so two builders racing for a code's last use cannot
-   both win.
-3. The browser's wallet adds the **fee-payer** signature and broadcasts it. The
+**A signed link** (`/claim?t=…`). The event's own system already verified what
+the team shipped, so it signs a payload (HMAC-SHA256, shared
+`CLAIM_LINK_SECRET`) and Proof of Build honours the signature. Nothing is
+typed: the builder sees the exact credential, connects a wallet and mints. The
+payload carries the team's id, so every member of a team lands on **one** build
+and claims their own credential against it. See
+[`src/lib/claim-link.ts`](src/lib/claim-link.ts).
+
+**A claim code** (`/create?event=…`). The event hands out a code bounded by
+`max_uses` and `expires_at`; one registration per wallet per event. For events
+with no system of their own.
+
+Then, either way:
+
+1. `POST /api/proofs/prepare` — the server authorises the claim, writes the
+   build, and signs the Token-2022 transaction as the **issuer** and as the new
+   **mint**. The issuer key never leaves the server. On the code path, redeeming
+   is a single conditional `UPDATE`, so two builders racing for a code's last
+   use cannot both win.
+2. The browser's wallet adds the **fee-payer** signature and broadcasts it. The
    builder pays the fee and the rent (~0.002 SOL). Their key never leaves the
    wallet.
-4. `POST /api/proofs/confirm` — the server checks the signature landed,
+3. `POST /api/proofs/confirm` — the server checks the signature landed,
    succeeded, **and involves the mint we issued**, before anything is recorded.
-   A signature is not a proof.
+   A signature is not a proof. The name on the credential comes from the signed
+   link, never from the request.
 
 Events are added by seed, never self-serve: put one in `src/lib/mock.ts` and
 run `pnpm db:seed`. Re-seeding never refunds spent code uses.

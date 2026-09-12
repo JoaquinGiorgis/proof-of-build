@@ -1,5 +1,6 @@
 import { BuildRow } from "@/components/build-row";
 import { SiteFooter } from "@/components/site-footer";
+import { isOnchain } from "@/lib/domain";
 import { listBuilds, listEvents } from "@/lib/queries";
 
 export const metadata = { title: "Explore" };
@@ -7,7 +8,7 @@ export const metadata = { title: "Explore" };
 export default async function ExplorePage() {
   const [builds, events] = await Promise.all([listBuilds(), listEvents()]);
   const byEvent = new Map(events.map((event) => [event.slug, event]));
-  const verified = builds.filter((build) => build.credential).length;
+  const verified = builds.filter(isOnchain).length;
 
   return (
     <div className="relative">

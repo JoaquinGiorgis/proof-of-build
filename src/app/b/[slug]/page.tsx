@@ -4,7 +4,7 @@ import { CredentialCard } from "@/components/credential-card";
 import { ShareBuild } from "@/components/share-build";
 import { SiteFooter } from "@/components/site-footer";
 import { Badge } from "@/components/ui/primitives";
-import { explorerUrl, shortAddress } from "@/lib/domain";
+import { explorerUrl, isOnchain, shortAddress } from "@/lib/domain";
 import { getBuild, getEvent } from "@/lib/queries";
 
 /** Figma: 09 Public build · Desktop 16:28. */
@@ -26,6 +26,8 @@ export default async function PublicBuildPage({
   if (!build) notFound();
 
   const event = await getEvent(build.eventSlug);
+  const onchain = isOnchain(build);
+  const first = build.credentials[0] ?? null;
   const track =
     event?.tracks.find((item) => item.slug === build.trackSlug)?.name ??
     build.trackSlug;
@@ -35,7 +37,7 @@ export default async function PublicBuildPage({
 
       <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-start gap-16 px-5 pt-[150px] pb-16 md:px-20 lg:grid-cols-[minmax(0,560px)_minmax(0,520px)]">
         <div className="animate-rise flex flex-col items-start gap-6">
-          {build.credential ? (
+          {onchain ? (
             <Badge>Verified onchain</Badge>
           ) : (
             <Badge dot={false}>Not yet onchain</Badge>
@@ -84,13 +86,9 @@ export default async function PublicBuildPage({
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            {build.credential && (
+            {first && (
               <a
-                href={explorerUrl(
-                  "tx",
-                  build.credential.signature,
-                  build.credential.cluster,
-                )}
+                href={explorerUrl("tx", first.signature, first.cluster)}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="focus-ring inline-flex items-center rounded-full bg-white px-[22px] py-[14px] text-[15px] leading-none font-medium tracking-[-0.033em] text-black shadow-[0_0_12px_0_rgb(255_255_255/0.12)] transition-[transform,filter] hover:-translate-y-px hover:brightness-[0.94] active:scale-[0.98]"
@@ -106,27 +104,37 @@ export default async function PublicBuildPage({
           className="mx-auto"
           issuer={event?.name ?? "Proof of Build"}
           year={event?.year ?? new Date(build.createdAt).getFullYear()}
-          builderName={build.builderName}
+          builderName={first?.builderName ?? build.team[0] ?? "—"}
           artwork={event?.artwork ?? null}
           tags={[build.name, `${track} track`, "Shipped"]}
         />
       </div>
 
-      {build.credential && (
-        <div className="mx-auto mt-6 w-full max-w-[1280px] px-5 md:px-10">
-          <div className="glass flex flex-wrap items-center gap-x-12 gap-y-4 rounded-2xl px-6 py-5">
-            <Badge className="border-none bg-transparent shadow-none backdrop-blur-none">
-              Verified onchain
-            </Badge>
-            <Fact label="Transaction">
-              {shortAddress(build.credential.signature, 4, 4)}
-            </Fact>
-            <Fact label="Wallet">{shortAddress(build.wallet, 4, 4)}</Fact>
-            <Fact label="Timestamp">
-              {formatStamp(build.credential.issuedAt)}
-            </Fact>
-            <Fact label="Network">Solana {build.credential.cluster}</Fact>
-          </div>
+      {/* One row per builder who claimed. A team ships one project and each
+          member carries their own credential, so the proof is a list. */}
+      {onchain && (
+        <div className="mx-auto mt-6 flex w-full max-w-[1280px] flex-col gap-3 px-5 md:px-10">
+          {build.credentials.map((credential) => (
+            <div
+              key={credential.mint}
+              className="glass flex flex-wrap items-center gap-x-12 gap-y-4 rounded-2xl px-6 py-5"
+            >
+              <Badge className="border-none bg-transparent shadow-none backdrop-blur-none">
+                Verified onchain
+              </Badge>
+              <Fact label="Builder">{credential.builderName}</Fact>
+              <Fact label="Transaction">
+                {shortAddress(credential.signature, 4, 4)}
+              </Fact>
+              <Fact label="Wallet">
+                {shortAddress(credential.wallet, 4, 4)}
+              </Fact>
+              <Fact label="Timestamp">
+                {formatStamp(credential.issuedAt)}
+              </Fact>
+              <Fact label="Network">Solana {credential.cluster}</Fact>
+            </div>
+          ))}
         </div>
       )}
 

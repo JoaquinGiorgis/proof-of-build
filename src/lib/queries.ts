@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import type {
   Build,
@@ -75,11 +75,34 @@ export async function getBuild(slug: string): Promise<Build | null> {
   return build ?? null;
 }
 
+/** The build a team's project maps to in the event's own system. */
+export async function getBuildByExternalId(
+  source: "manual" | "hackcba",
+  externalId: string,
+): Promise<Build | null> {
+  const [build] = await selectBuilds(
+    and(
+      eq(schema.builds.source, source),
+      eq(schema.builds.externalId, externalId),
+    ),
+  );
+  return build ?? null;
+}
+
+/** The builds a wallet holds a credential for. */
 export async function listBuildsByWallet(wallet: string): Promise<Build[]> {
-  // Addresses are case-sensitive base58, but a pasted address may differ in
-  // case from what the wallet reported, so match case-insensitively.
+  const db = getDb();
+  const claimed = await db
+    .select({ buildSlug: schema.credentials.buildSlug })
+    .from(schema.credentials)
+    .where(sql`lower(${schema.credentials.wallet}) = lower(${wallet})`);
+
+  if (claimed.length === 0) return [];
   return selectBuilds(
-    sql`lower(${schema.builds.wallet}) = lower(${wallet})`,
+    inArray(
+      schema.builds.slug,
+      claimed.map((row) => row.buildSlug),
+    ),
   );
 }
 
@@ -88,9 +111,16 @@ export async function getProfile(
 ): Promise<BuilderProfile | null> {
   const builds = await listBuildsByWallet(wallet);
   if (builds.length === 0) return null;
+
+  // The name comes from this builder's own credential, not the build's — on a
+  // team project, each member is credited under their own name.
+  const mine = builds[0].credentials.find(
+    (credential) => credential.wallet.toLowerCase() === wallet.toLowerCase(),
+  );
+
   return {
-    wallet: builds[0].wallet,
-    name: builds[0].builderName || shortAddress(builds[0].wallet, 6, 6),
+    wallet: mine?.wallet ?? wallet,
+    name: mine?.builderName || shortAddress(wallet, 6, 6),
     handle: null,
     builds,
   };
@@ -100,17 +130,35 @@ export async function getProfile(
 
 async function selectBuilds(where?: SQL) {
   const db = getDb();
-  const rows = await db
-    .select({ build: schema.builds, credential: schema.credentials })
+  const buildRows = await db
+    .select()
     .from(schema.builds)
-    .leftJoin(
-      schema.credentials,
-      eq(schema.credentials.buildSlug, schema.builds.slug),
-    )
     .where(where)
     .orderBy(desc(schema.builds.createdAt));
 
-  return rows.map((row) => toBuild(row.build, row.credential));
+  if (buildRows.length === 0) return [];
+
+  const credentialRows = await db
+    .select()
+    .from(schema.credentials)
+    .where(
+      inArray(
+        schema.credentials.buildSlug,
+        buildRows.map((build) => build.slug),
+      ),
+    )
+    .orderBy(asc(schema.credentials.issuedAt));
+
+  const byBuild = new Map<string, CredentialRow[]>();
+  for (const credential of credentialRows) {
+    const bucket = byBuild.get(credential.buildSlug);
+    if (bucket) bucket.push(credential);
+    else byBuild.set(credential.buildSlug, [credential]);
+  }
+
+  return buildRows.map((build) =>
+    toBuild(build, byBuild.get(build.slug) ?? []),
+  );
 }
 
 function toEvent(event: EventRow, trackRows: TrackRow[]): EventRecord {
@@ -129,7 +177,7 @@ function toEvent(event: EventRow, trackRows: TrackRow[]): EventRecord {
   };
 }
 
-function toBuild(build: BuildRow, credential: CredentialRow | null): Build {
+function toBuild(build: BuildRow, credentials: CredentialRow[]): Build {
   return {
     slug: build.slug,
     name: build.name,
@@ -142,7 +190,7 @@ function toBuild(build: BuildRow, credential: CredentialRow | null): Build {
     wallet: build.wallet,
     builderName: build.builderName,
     status: build.status as BuildStatus,
-    credential: credential ? toCredential(credential) : null,
+    credentials: credentials.map(toCredential),
     createdAt: build.createdAt.toISOString(),
   };
 }
@@ -150,6 +198,8 @@ function toBuild(build: BuildRow, credential: CredentialRow | null): Build {
 function toCredential(credential: CredentialRow): Credential {
   return {
     mint: credential.mint,
+    wallet: credential.wallet,
+    builderName: credential.builderName,
     signature: credential.signature,
     cluster: credential.cluster as Credential["cluster"],
     issuedAt: credential.issuedAt.toISOString(),

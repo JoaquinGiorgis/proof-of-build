@@ -89,7 +89,7 @@ export function ProofPreview({
             <Button
               className="px-8 py-[18px] text-[17px]"
               onClick={() =>
-                address ? mint.start({ draft, claimCode }) : openModal()
+                address ? mint.start({ kind: "code", draft, claimCode }) : openModal()
               }
             >
               {address ? "Claim Proof" : "Connect wallet"}

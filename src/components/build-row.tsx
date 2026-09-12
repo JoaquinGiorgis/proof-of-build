@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { Build, EventRecord } from "@/lib/domain";
+import { isOnchain, type Build, type EventRecord } from "@/lib/domain";
 
 /**
  * Figma: 10 Builder profile 17:33 — the row used in the profile and explore
@@ -13,6 +13,7 @@ export function BuildRow({
   build: Build;
   event: EventRecord | null;
 }) {
+  const onchain = isOnchain(build);
   const track =
     event?.tracks.find((item) => item.slug === build.trackSlug)?.name ??
     build.trackSlug;
@@ -47,7 +48,7 @@ export function BuildRow({
         <span className="hidden flex-col gap-1.5 md:flex">
           <span className="type-meta text-text-tertiary">Date</span>
           <span className="type-body-m text-text-primary">
-            {formatDate(build.credential?.issuedAt ?? build.createdAt)}
+            {formatDate(build.credentials[0]?.issuedAt ?? build.createdAt)}
           </span>
         </span>
 
@@ -60,13 +61,17 @@ export function BuildRow({
           <span
             aria-hidden
             className={
-              build.credential
+              onchain
                 ? "size-1.5 rounded-full bg-white shadow-[0_0_8px_0_rgb(255_255_255/0.6)]"
                 : "size-1.5 rounded-full bg-[rgb(255_255_255/0.25)]"
             }
           />
           <span className="type-meta text-text-secondary">
-            {build.credential ? "Verified" : "Pending"}
+            {onchain
+              ? build.credentials.length > 1
+                ? `${build.credentials.length} claimed`
+                : "Verified"
+              : "Pending"}
           </span>
         </span>
       </Link>

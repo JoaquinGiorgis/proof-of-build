@@ -40,22 +40,45 @@ export type Build = {
   eventSlug: string;
   githubUrl: string | null;
   demoUrl: string | null;
-  /** Base58 address of the builder who owns the credential. */
-  wallet: string;
-  builderName: string;
+  /** Who registered the build, when a person did. Not the owner. */
+  wallet: string | null;
+  builderName: string | null;
   status: BuildStatus;
-  credential: Credential | null;
+  /**
+   * Every credential claimed against this build — one per builder. A team
+   * ships one project and each member carries their own proof of it.
+   */
+  credentials: Credential[];
   createdAt: string;
 };
 
 export type Credential = {
   /** Token-2022 mint address. */
   mint: string;
+  /** Base58 address of the builder this credential belongs to. */
+  wallet: string;
+  /** How this builder is credited on their card. */
+  builderName: string;
   /** Transaction signature of the mint. */
   signature: string;
   cluster: "devnet" | "mainnet-beta";
   issuedAt: string;
 };
+
+/** The credential a given wallet holds against a build, if any. */
+export function credentialFor(build: Build, wallet: string | null) {
+  if (!wallet) return null;
+  return (
+    build.credentials.find(
+      (credential) => credential.wallet.toLowerCase() === wallet.toLowerCase(),
+    ) ?? null
+  );
+}
+
+/** A build is onchain once anybody on the team has claimed. */
+export function isOnchain(build: Build) {
+  return build.credentials.length > 0;
+}
 
 export type BuilderProfile = {
   wallet: string;

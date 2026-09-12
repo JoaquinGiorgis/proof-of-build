@@ -36,6 +36,20 @@
       "when": 1789224175571,
       "tag": "0004_common_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789225073260,
+      "tag": "0005_curious_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789225097446,
+      "tag": "0006_many_credentials_per_build",
+      "breakpoints": true
     }
   ]
 }

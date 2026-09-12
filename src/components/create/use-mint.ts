@@ -8,7 +8,6 @@ import {
   signAndSendTransactionWithSigners,
 } from "@solana/kit";
 import type { BuildDraft } from "@/lib/build-draft";
-
 import { getSolanaClient } from "@/lib/solana/client";
 
 /**
@@ -30,7 +29,17 @@ export type MintResult = {
   mint: string;
   buildSlug: string;
   issuedAt: string;
+  /** True when the builder already held this credential. Nothing was minted. */
+  alreadyClaimed?: boolean;
 };
+
+/**
+ * How this claim is authorised: a code the builder typed, or a link the event
+ * signed. The server accepts either and the Solana path is the same.
+ */
+export type MintAuth =
+  | { kind: "code"; draft: BuildDraft; claimCode: string }
+  | { kind: "link"; token: string };
 
 export function useMint() {
   const [stage, setStage] = useState<MintStage>("idle");
@@ -44,85 +53,105 @@ export function useMint() {
     setError(null);
   }, []);
 
-  const start = useCallback(
-    async ({ draft, claimCode }: { draft: BuildDraft; claimCode: string }) => {
-      cancelled.current = false;
-      setError(null);
-      setResult(null);
-      setStage("preparing");
+  const start = useCallback(async (auth: MintAuth) => {
+    cancelled.current = false;
+    setError(null);
+    setResult(null);
+    setStage("preparing");
 
-      try {
-        const client = getSolanaClient();
-        const connected = client.wallet.getState().connected;
-        if (!connected?.signer) {
-          throw new Error("Connect a wallet that can sign transactions.");
-        }
+    try {
+      const client = getSolanaClient();
+      const connected = client.wallet.getState().connected;
+      if (!connected?.signer) {
+        throw new Error("Connect a wallet that can sign transactions.");
+      }
+      const payer = connected.account.address;
 
-        // 1. The server builds the transaction and signs as the issuer and as
-        //    the new mint. The browser never sees either key.
-        const prepared = await postJson<{
-          transaction: string;
-          mint: string;
-          buildSlug: string;
-        }>("/api/proofs/prepare", {
-          draft,
-          payer: connected.account.address,
-          claimCode,
-        });
-        if (cancelled.current) return;
+      // 1. The server authorises the claim, records the build, and signs as
+      //    the issuer and as the new mint. The browser sees neither key.
+      const prepared = await postJson<{
+        transaction?: string;
+        mint: string;
+        buildSlug: string;
+        builderName?: string;
+        alreadyClaimed?: boolean;
+        signature?: string;
+      }>(
+        "/api/proofs/prepare",
+        auth.kind === "link"
+          ? { token: auth.token, payer }
+          : { draft: auth.draft, claimCode: auth.claimCode, payer },
+      );
+      if (cancelled.current) return;
 
-        setStage("opening");
-
-        const transaction = getTransactionDecoder().decode(
-          getBase64Encoder().encode(prepared.transaction),
-        );
-
-        setStage("awaiting");
-
-        // 2. The wallet adds the fee-payer signature and broadcasts it. The
-        //    user's key never leaves the wallet.
-        const signatureBytes = await signAndSendTransactionWithSigners(
-          [connected.signer],
-          transaction,
-        );
-        if (cancelled.current) return;
-        const signature = getBase58Decoder().decode(signatureBytes);
-
-        setStage("sending");
-        setStage("confirming");
-
-        // 3. The server confirms against the cluster before marking the build
-        //    as minted — a signature on its own is not a proof.
-        const confirmed = await postJson<{ issuedAt: string }>(
-          "/api/proofs/confirm",
-          {
-            buildSlug: prepared.buildSlug,
-            signature,
-            mint: prepared.mint,
-            payer: connected.account.address,
-          },
-        );
-        if (cancelled.current) return;
-
+      // This builder already holds a credential for this build. Show it
+      // instead of minting a second one.
+      if (prepared.alreadyClaimed && prepared.signature) {
         setStage("done");
         setResult({
-          signature,
+          signature: prepared.signature,
           mint: prepared.mint,
           buildSlug: prepared.buildSlug,
-          issuedAt: confirmed.issuedAt,
+          issuedAt: new Date().toISOString(),
+          alreadyClaimed: true,
         });
-      } catch (cause) {
-        if (cancelled.current) return;
-        setStage("idle");
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Something went wrong. Nothing was sent.",
-        );
+        return;
       }
-    },
-    [],
-  );
+      if (!prepared.transaction) throw new Error("No transaction to sign.");
+
+      setStage("opening");
+
+      const transaction = getTransactionDecoder().decode(
+        getBase64Encoder().encode(prepared.transaction),
+      );
+
+      setStage("awaiting");
+
+      // 2. The wallet adds the fee-payer signature and broadcasts it. The
+      //    user's key never leaves the wallet.
+      const signatureBytes = await signAndSendTransactionWithSigners(
+        [connected.signer],
+        transaction,
+      );
+      if (cancelled.current) return;
+      const signature = getBase58Decoder().decode(signatureBytes);
+
+      setStage("sending");
+      setStage("confirming");
+
+      // 3. The server confirms against the cluster before recording anything.
+      //    A signature on its own is not a proof.
+      const confirmed = await postJson<{ issuedAt: string }>(
+        "/api/proofs/confirm",
+        {
+          buildSlug: prepared.buildSlug,
+          signature,
+          mint: prepared.mint,
+          payer,
+          ...(auth.kind === "link"
+            ? { token: auth.token }
+            : { builderName: prepared.builderName }),
+        },
+      );
+      if (cancelled.current) return;
+
+      setStage("done");
+      setResult({
+        signature,
+        mint: prepared.mint,
+        buildSlug: prepared.buildSlug,
+        issuedAt: confirmed.issuedAt,
+      });
+    } catch (cause) {
+      if (cancelled.current) return;
+      setStage("idle");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Something went wrong. Nothing was sent.",
+      );
+    }
+  }, []);
 
   return { stage, error, result, start, cancel };
 }

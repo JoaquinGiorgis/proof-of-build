@@ -1,38 +1,67 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { buildDraftSchema } from "@/lib/build-draft";
-import { ClaimError, createBuildDraft, type ClaimFailure } from "@/lib/mutations";
+import { buildDraftSchema, type BuildDraft } from "@/lib/build-draft";
+import { verifyClaimToken } from "@/lib/claim-link";
+import {
+  ClaimError,
+  createBuildDraft,
+  findCredential,
+  upsertExternalBuild,
+  type ClaimFailure,
+} from "@/lib/mutations";
 import { getEvent } from "@/lib/queries";
 import { prepareCredential } from "@/lib/solana/credential";
 
 /**
- * Records the build and issuer-signs its credential transaction.
+ * Builds and issuer-signs a credential transaction.
  *
- * The browser sends the draft and its own address; everything is re-validated
- * here, because a request body is untrusted input. The issuer key never leaves
- * this process, and the response carries no secret — only a transaction that
- * is useless until the builder signs it as fee payer.
+ * Two ways in, one Solana path:
+ *
+ *  · a **claim code** the event handed out, plus a draft the builder typed;
+ *  · a **signed link** the event's own system issued, which already carries
+ *    the project it verified — nothing to type, nothing to trust from the
+ *    client beyond a signature we can check.
+ *
+ * Either way the issuer key never leaves this process, and the response
+ * carries no secret: the transaction is useless until the builder signs it as
+ * fee payer.
  */
 
 export const runtime = "nodejs";
 
-const bodySchema = z.object({
-  draft: buildDraftSchema,
-  payer: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/, "invalid payer"),
-  claimCode: z
-    .string("This event needs a claim code.")
-    .trim()
-    .min(4, "This event needs a claim code.")
-    .max(32),
-});
+const wallet = z
+  .string()
+  .regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/, "invalid payer");
+
+const bodySchema = z.union([
+  z.object({
+    payer: wallet,
+    token: z.string().min(16).max(4096),
+  }),
+  z.object({
+    payer: wallet,
+    draft: buildDraftSchema,
+    claimCode: z
+      .string("This event needs a claim code.")
+      .trim()
+      .min(4, "This event needs a claim code.")
+      .max(32),
+  }),
+]);
 
 const CLAIM_MESSAGES: Record<ClaimFailure, string> = {
   "unknown-code": "That code does not exist.",
   "wrong-event": "That code belongs to a different event.",
   expired: "That code has expired.",
   exhausted: "That code has been used up.",
-  "already-claimed": "This wallet already has a build at this event.",
+  "already-claimed": "This wallet already registered a build at this event.",
 };
+
+const TOKEN_MESSAGES = {
+  malformed: "That claim link is not readable.",
+  "bad-signature": "That claim link was not issued by this event.",
+  expired: "That claim link has expired. Ask the event for a new one.",
+} as const;
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -50,54 +79,119 @@ export async function POST(request: Request) {
     );
   }
 
-  const { draft, payer, claimCode } = parsed.data;
-
-  const event = await getEvent(draft.eventSlug);
-  if (!event) {
-    return NextResponse.json({ error: "unknown event" }, { status: 404 });
-  }
-  // The track has to belong to this event — not any string the client sends.
-  if (!event.tracks.some((track) => track.slug === draft.trackSlug)) {
-    return NextResponse.json({ error: "unknown track" }, { status: 400 });
-  }
-
+  const input = parsed.data;
   const siteUrl = siteUrlFrom(request);
 
+  let draft: BuildDraft;
   let buildSlug: string;
-  try {
-    // Redeeming the code and writing the build happen in one transaction, and
-    // this is the only gate on the issuer's signature. The build is written
-    // before the transaction is built so the credential's metadata URL points
-    // at a page that exists.
-    ({ slug: buildSlug } = await createBuildDraft({
-      draft,
-      wallet: payer,
-      builderName: draft.team[0] ?? "",
-      claimCode,
-    }));
-  } catch (cause) {
-    if (cause instanceof ClaimError) {
+  let builderName: string;
+
+  if ("token" in input) {
+    const verdict = verifyClaimToken(input.token);
+    if (!verdict.ok) {
       return NextResponse.json(
-        { error: CLAIM_MESSAGES[cause.reason] },
+        { error: TOKEN_MESSAGES[verdict.reason] },
         { status: 403 },
       );
     }
-    console.error("[proofs/prepare] claim", cause);
-    return NextResponse.json(
-      { error: "Could not register the build. Nothing was sent." },
-      { status: 500 },
-    );
+    const payload = verdict.payload;
+
+    const event = await getEvent(payload.ev);
+    if (!event) {
+      return NextResponse.json({ error: "unknown event" }, { status: 404 });
+    }
+    // The track is signed, but it still has to be one this event runs — a
+    // stale link from before a track was renamed should fail loudly.
+    if (!event.tracks.some((track) => track.slug === payload.tr)) {
+      return NextResponse.json(
+        { error: "That link points at a track this event no longer has." },
+        { status: 409 },
+      );
+    }
+
+    draft = {
+      eventSlug: event.slug,
+      name: payload.n,
+      tagline: payload.d,
+      githubUrl: payload.gh,
+      demoUrl: payload.live,
+      team: payload.team_names,
+      trackSlug: payload.tr,
+    };
+    builderName = payload.builder;
+
+    ({ slug: buildSlug } = await upsertExternalBuild({
+      source: "hackcba",
+      externalId: payload.team,
+      eventSlug: event.slug,
+      name: payload.n,
+      tagline: payload.d,
+      team: payload.team_names,
+      trackSlug: payload.tr,
+      githubUrl: payload.gh || null,
+      demoUrl: payload.live || null,
+    }));
+
+    // Claiming twice is a refresh, not an error. Hand back what they have
+    // rather than minting a second credential for the same builder.
+    const existing = await findCredential(buildSlug, input.payer);
+    if (existing) {
+      return NextResponse.json(
+        {
+          alreadyClaimed: true,
+          buildSlug,
+          mint: existing.mint,
+          signature: existing.signature,
+        },
+        { status: 200 },
+      );
+    }
+  } else {
+    const event = await getEvent(input.draft.eventSlug);
+    if (!event) {
+      return NextResponse.json({ error: "unknown event" }, { status: 404 });
+    }
+    if (!event.tracks.some((track) => track.slug === input.draft.trackSlug)) {
+      return NextResponse.json({ error: "unknown track" }, { status: 400 });
+    }
+
+    draft = input.draft;
+    builderName = input.draft.team[0] ?? "";
+
+    try {
+      // Redeeming the code and writing the build happen in one transaction,
+      // and this is the only gate on the issuer's signature.
+      ({ slug: buildSlug } = await createBuildDraft({
+        draft: input.draft,
+        wallet: input.payer,
+        builderName,
+        claimCode: input.claimCode,
+      }));
+    } catch (cause) {
+      if (cause instanceof ClaimError) {
+        return NextResponse.json(
+          { error: CLAIM_MESSAGES[cause.reason] },
+          { status: 403 },
+        );
+      }
+      console.error("[proofs/prepare] claim", cause);
+      return NextResponse.json(
+        { error: "Could not register the build. Nothing was sent." },
+        { status: 500 },
+      );
+    }
   }
 
   try {
+    const event = await getEvent(draft.eventSlug);
     const prepared = await prepareCredential({
       draft,
-      event,
-      payer,
+      event: event!,
+      payer: input.payer,
       siteUrl,
       buildSlug,
     });
-    return NextResponse.json({ ...prepared, buildSlug });
+    return NextResponse.json({ ...prepared, buildSlug, builderName });
   } catch (cause) {
     console.error("[proofs/prepare]", cause);
     return NextResponse.json(

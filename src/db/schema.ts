@@ -29,6 +29,9 @@ export const buildStatus = pgEnum("build_status", [
 
 export const cluster = pgEnum("cluster", ["devnet", "mainnet-beta"]);
 
+/** Where a build came from. See `builds.source`. */
+export const buildSource = pgEnum("build_source", ["manual", "hackcba"]);
+
 export const events = pgTable("events", {
   slug: varchar("slug", { length: 64 }).primaryKey(),
   name: text("name").notNull(),
@@ -109,11 +112,23 @@ export const builds = pgTable(
       .references(() => events.slug, { onDelete: "cascade" }),
     githubUrl: text("github_url"),
     demoUrl: text("demo_url"),
-    /** Base58 address of the builder who owns the credential. */
-    wallet: varchar("wallet", { length: 44 }).notNull(),
-    builderName: text("builder_name").notNull(),
+    /**
+     * Who registered the build. Not the owner of the credential — a build is
+     * a project, and every member of the team claims their own credential
+     * against it. Null for builds that arrived from an event's own system,
+     * where nobody "registered" it by hand.
+     */
+    wallet: varchar("wallet", { length: 44 }),
+    builderName: text("builder_name"),
     status: buildStatus("status").notNull().default("draft"),
-    /** Which code authorised this build — kept so an issuer can audit. */
+    /**
+     * Where the build came from. `hackcba` builds are created from a signed
+     * link the event issued; `manual` ones from the create flow with a code.
+     */
+    source: buildSource("source").notNull().default("manual"),
+    /** The id this build has in the event's own system, when it has one. */
+    externalId: text("external_id"),
+    /** Which code authorised this build — null when a signed link did. */
     claimCode: varchar("claim_code", { length: 32 }).references(
       () => claimCodes.code,
       { onDelete: "set null" },
@@ -125,9 +140,16 @@ export const builds = pgTable(
   (table) => [
     index("builds_wallet_idx").on(table.wallet),
     index("builds_event_slug_idx").on(table.eventSlug),
+    // One build per team in the source system. This is what makes four
+    // teammates opening four links land on the same project.
+    uniqueIndex("builds_source_external_idx").on(table.source, table.externalId),
   ],
 );
 
+/**
+ * A claimed credential. Many per build: a team ships one project, and every
+ * member carries their own proof of having built it.
+ */
 export const credentials = pgTable(
   "credentials",
   {
@@ -136,6 +158,10 @@ export const credentials = pgTable(
     buildSlug: varchar("build_slug", { length: 64 })
       .notNull()
       .references(() => builds.slug, { onDelete: "cascade" }),
+    /** Base58 address of the builder this credential belongs to. */
+    wallet: varchar("wallet", { length: 44 }).notNull(),
+    /** How this builder is credited on the card. */
+    builderName: text("builder_name").notNull(),
     /** Transaction signature of the mint, confirmed before it is written. */
     signature: varchar("signature", { length: 88 }).notNull(),
     cluster: cluster("cluster").notNull().default("devnet"),
@@ -146,7 +172,7 @@ export const credentials = pgTable(
   (table) => [
     // A signature can only ever count once — the same rule as a payment.
     uniqueIndex("credentials_signature_idx").on(table.signature),
-    uniqueIndex("credentials_build_slug_idx").on(table.buildSlug),
+    index("credentials_wallet_idx").on(table.wallet),
   ],
 );
 

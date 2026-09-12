@@ -35,11 +35,14 @@ export const CORDOBA_HACK: SeedEvent = {
   endsAt: "2026-09-12",
   artwork: "/assets/cordoba-hack-proof.png",
   cover: "/assets/cordoba-hack-cover.webp",
+  // Slugs match hackcba's own (`src/app/dashboard/content.ts` there), because
+  // a signed claim link carries the track the team picked in that dashboard.
+  // Rename one and the old links stop verifying — which is the point.
   tracks: [
-    { slug: "solana", name: "Solana" },
     { slug: "ai", name: "AI" },
-    { slug: "fintech", name: "Fintech" },
-    { slug: "open", name: "Open" },
+    { slug: "web3", name: "Web3" },
+    { slug: "agro", name: "Agro" },
+    { slug: "twin", name: "Fintech" },
   ],
   claimCodes: [
     {

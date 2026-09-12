@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx scripts/seed.mts"
+    "db:seed": "tsx scripts/seed.mts",
+    "claim:link": "tsx scripts/claim-link.mts"
   },
   "dependencies": {
     "@solana-program/compute-budget": "^0.18.1",

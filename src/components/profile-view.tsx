@@ -1,6 +1,11 @@
 import { BuildRow } from "@/components/build-row";
 import { SiteFooter } from "@/components/site-footer";
-import type { Build, BuilderProfile, EventRecord } from "@/lib/domain";
+import {
+  isOnchain,
+  type Build,
+  type BuilderProfile,
+  type EventRecord,
+} from "@/lib/domain";
 
 /** Figma: 10 Builder profile · Desktop 17:33. */
 
@@ -12,7 +17,7 @@ export function ProfileView({
   events: EventRecord[];
 }) {
   const byEvent = new Map(events.map((event) => [event.slug, event]));
-  const shipped = profile.builds.filter((build) => build.credential).length;
+  const shipped = profile.builds.filter(isOnchain).length;
   const byYear = groupByYear(profile.builds);
 
   return (
@@ -65,7 +70,7 @@ function groupByYear(builds: Build[]): [string, Build[]][] {
   const groups = new Map<string, Build[]>();
   for (const build of builds) {
     const year = String(
-      new Date(build.credential?.issuedAt ?? build.createdAt).getUTCFullYear(),
+      new Date(build.credentials[0]?.issuedAt ?? build.createdAt).getUTCFullYear(),
     );
     const bucket = groups.get(year);
     if (bucket) bucket.push(build);
