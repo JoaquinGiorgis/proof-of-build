@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { ClaimProofCta } from "@/components/claim-proof-cta";
-import { NinjaTurntable } from "@/components/ninja-turntable";
+import { Ninja } from "@/components/ninja";
 import { Badge } from "@/components/ui/primitives";
 import { getEvent, listBuilds } from "@/lib/queries";
 
@@ -58,15 +58,16 @@ export default async function EventPage({ params }: PageProps<"/events/[slug]">)
                 aria-hidden
                 className="absolute bottom-[4%] left-1/2 h-[78px] w-[420px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse,rgb(0_0_0/0.75)_0%,transparent_70%)] blur-xl"
               />
-              {/* Turning, not glinting: the rotation already catches the
-                  light, and running both reads as two effects fighting. */}
-              <NinjaTurntable
-                poster={event.artwork}
-                webm="/assets/ninja-360/ninja-spin.webm"
+              {/* The still, with the glint crossing it. The float lives on the
+                  component rather than this wrapper so there is one element
+                  driving the drift, not a wrapper and a child doing it at
+                  once. */}
+              <Ninja
+                src={event.artwork}
                 alt={`${event.name} ${event.year} credential artwork`}
                 priority
                 sizes="(min-width: 1024px) 600px, 0px"
-                className="animate-float absolute inset-0"
+                className="absolute inset-0"
               />
             </div>
           )}
