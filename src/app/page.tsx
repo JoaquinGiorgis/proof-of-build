@@ -1,69 +1,102 @@
 import Image from "next/image";
+import { LiquidBlack } from "@/components/liquid-black";
+import { SiteFooter } from "@/components/site-footer";
+import { ConnectCta } from "@/components/connect-cta";
+import { ButtonLink } from "@/components/ui/button";
 
-export default function Home() {
+/** Figma: 01 Home · Desktop 5:2. */
+
+const STEPS = [
+  { label: "01 — Build", title: "Create something real." },
+  { label: "02 — Prove", title: "Register the build onchain." },
+  { label: "03 — Keep", title: "Carry your proof anywhere." },
+];
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      <section className="relative isolate overflow-hidden">
+        {/* The shader plate sits behind the hero and fades into the page. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(1000px,110vh)]">
+          <LiquidBlack />
+          <div className="absolute inset-x-0 bottom-0 h-[35%] bg-gradient-to-b from-transparent to-black" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-16 px-5 pt-[180px] pb-24 md:px-20 lg:grid-cols-[minmax(0,599px)_minmax(0,520px)] lg:pt-[236px] lg:pb-40">
+          <div className="animate-rise flex flex-col items-start gap-7">
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="h-px w-7 bg-[rgb(255_255_255/0.45)]"
+              />
+              <span className="type-meta-l text-text-tertiary">
+                Córdoba Hack 2026 · Naranja X
+              </span>
+            </div>
+
+            <h1 className="type-hero text-text-primary">
+              Proof of
+              <br />
+              Build
+            </h1>
+
+            <p className="type-h2 text-text-secondary">
+              Ship something.
+              <br />
+              Prove you built it.
+            </p>
+
+            <p className="type-body-l text-text-tertiary max-w-[520px]">
+              A verifiable record of what you actually shipped.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-5">
+              <ConnectCta />
+              <ButtonLink href="/explore" variant="ghost">
+                Explore builds
+                <span
+                  aria-hidden
+                  className="text-text-tertiary transition-transform duration-200 group-hover:translate-x-0.5"
+                >
+                  →
+                </span>
+              </ButtonLink>
+            </div>
+          </div>
+
+          {/* Hero asset — a liquid-chrome knot, generated for this screen. It
+              is screen-blended because the render's black is not pure 0. */}
+          <div className="relative mx-auto hidden aspect-[520/650] w-full max-w-[560px] lg:block">
+            <div
+              aria-hidden
+              className="absolute -inset-[12%] rounded-full bg-[radial-gradient(circle,rgb(255_255_255/0.08)_0%,transparent_65%)] blur-3xl"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="animate-float absolute inset-0 mix-blend-screen [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_78%)]">
+              <Image
+                src="/assets/proof-of-build-hero.png"
+                alt=""
+                fill
+                priority
+                sizes="(min-width: 1024px) 560px, 0px"
+                className="object-contain"
+              />
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-10 px-5 pb-28 md:grid-cols-3 md:px-10">
+        {STEPS.map((step) => (
+          <div key={step.label} className="rule flex flex-col gap-5 pt-7">
+            <span className="type-meta-l text-text-tertiary">{step.label}</span>
+            <h2 className="type-h3 text-text-primary max-w-[360px]">
+              {step.title}
+            </h2>
+          </div>
+        ))}
+      </section>
+
+      <SiteFooter />
+    </>
   );
 }

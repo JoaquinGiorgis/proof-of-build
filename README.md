@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Proof of Build
 
-## Getting Started
+A verifiable record of what you actually shipped. Builders register a build at
+an event and claim a credential onchain; anyone can check the claim without
+asking us.
 
-First, run the development server:
+First issuer: **Córdoba Hack 2026 · Naranja X**.
+
+## What the credential is
+
+A **Token-2022 mint** with three things set at creation:
+
+| Extension | Why |
+|---|---|
+| `NonTransferable` | A record of what you built is not a tradable asset. |
+| `MetadataPointer` | Points at the mint itself. |
+| `TokenMetadata` | Name, symbol, uri and the build's facts, onchain. |
+
+Supply is one, decimals zero, and the mint authority is revoked in the same
+transaction — no second copy can ever exist. Do not call it an NFT.
+
+Only public facts go onchain: project, track, event, team, wallet. Nothing
+personal — a chain is public and indelible.
+
+## Stack
+
+Follows [Superteam Argentina's Solana guide](https://superteam.ar/stack); the
+rules file it ships is committed at [`docs/SOLANA-RULES.md`](docs/SOLANA-RULES.md)
+and the full guide at [`docs/superteam-solana-stack.md`](docs/superteam-solana-stack.md).
+
+- **Next.js 16** (App Router, Turbopack) · **React 19** · **Tailwind v4**
+- **`@solana/kit` v8** + `kit-plugin-wallet` (Wallet Standard) and
+  `kit-plugin-rpc`. No `web3.js` v1, no `wallet-adapter`.
+- **`@solana-program/token-2022`** for the credential.
+- **Drizzle + Postgres (Supabase)** for the content behind the proof.
+- Network: **devnet**, always.
+
+## Running it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local
+pnpm issuer:keygen          # prints ISSUER_SECRET_KEY — paste it into .env.local
+solana airdrop 1 <issuer address> --url devnet
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The screens render on seed data (`src/lib/mock.ts`) until `DATABASE_URL` is
+set; `src/lib/queries.ts` is the single seam between the screens and the data
+source.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | What it does |
+|---|---|
+| `pnpm dev` | Dev server on :3000 |
+| `pnpm build` | Production build (typechecks) |
+| `pnpm lint` / `pnpm typecheck` | ESLint / `tsc --noEmit` |
+| `pnpm issuer:keygen` | Generates the issuer keypair |
+| `pnpm db:generate` / `db:migrate` / `db:push` / `db:studio` | Drizzle Kit |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How a proof is issued
 
-## Learn More
+1. `POST /api/proofs/prepare` — the server re-validates the draft, builds the
+   Token-2022 transaction and signs it as the **issuer** and as the new **mint**.
+   The issuer key never leaves the server.
+2. The browser's wallet adds the **fee-payer** signature and broadcasts it. The
+   builder pays the fee and the rent (~0.002 SOL). Their key never leaves the
+   wallet.
+3. `POST /api/proofs/confirm` — the server checks the signature actually landed
+   and succeeded **before** anything is recorded. A signature is not a proof.
 
-To learn more about Next.js, take a look at the following resources:
+## Design
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Built from the Figma file *Proof of Build — MVP*
+(`MYecCva4jZgIAjO7YoqGdR`). One palette: black base, white at 72 / 45 / 12 / 8 /
+6 / 3.5 %. The golden ninja is the only chromatic element; everything else is
+lighting, reflection, glass and grain. Tokens live in
+[`src/app/globals.css`](src/app/globals.css); the hero shader is
+[`src/components/liquid-black.tsx`](src/components/liquid-black.tsx).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Layout
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+  app/            routes — /, /explore, /events/[slug], /create, /b/[slug], /u/[wallet], /builds, /about
+    api/          builds, proofs/prepare, proofs/confirm, proofs/[slug]/metadata
+  components/     screens and primitives (ui/ holds the Figma component set)
+  db/             Drizzle schema + connection
+  lib/            domain types, queries, solana client / issuer / credential
+```
