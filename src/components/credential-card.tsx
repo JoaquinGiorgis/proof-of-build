@@ -63,7 +63,7 @@ export function CredentialCard({
       onPointerMove={onPointerMove}
       onPointerLeave={reset}
       className={cn(
-        "relative aspect-[520/720] w-full max-w-[520px] overflow-hidden rounded-[32px]",
+        "@container relative flex aspect-[520/720] w-full max-w-[520px] flex-col overflow-hidden rounded-[32px]",
         "border border-[rgb(255_255_255/0.12)]",
         "bg-gradient-to-b from-[#171717] to-[#050505]",
         "shadow-[0_0_120px_0_rgb(255_204_115/0.1),0_40px_80px_-20px_rgb(0_0_0/0.7)]",
@@ -83,13 +83,17 @@ export function CredentialCard({
       />
       <div aria-hidden className="glass-grain pointer-events-none absolute inset-0" />
 
-      <header className="type-meta-l absolute inset-x-[6%] top-[3.75%] flex items-start justify-between text-text-secondary">
+      {/* Header, artwork and details are a flow column, not three blocks
+          pinned at fixed percentages. Pinned, the artwork keeps its 56% while
+          the details grow upward, and on a short or narrow card the ninja ends
+          up sitting on top of the builder's name. */}
+      <header className="type-meta-l relative flex shrink-0 items-start justify-between px-[6%] pt-[3.75%] text-text-secondary">
         <span>{issuer}</span>
         <span>{year}</span>
       </header>
 
       {artwork && (
-        <div className="absolute top-[9.5%] left-1/2 h-[56%] w-[62%] -translate-x-1/2">
+        <div className="relative mx-auto mt-[2%] min-h-0 w-[62%] flex-1">
           <div
             aria-hidden
             className="absolute bottom-[-6%] left-1/2 h-[47px] w-[260px] max-w-[80%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse,rgb(0_0_0/0.7)_0%,transparent_70%)] blur-md"
@@ -120,10 +124,14 @@ export function CredentialCard({
         </div>
       )}
 
-      <div className="absolute inset-x-[6%] top-[68.8%] flex flex-col gap-3.5">
+      {/* Details and footer share one bottom-anchored column instead of being
+          two absolutely-placed blocks. Positioned separately, a name that runs
+          long or tags that wrap to a second line push straight through the
+          footer — which they do on any narrow card. */}
+      <div className="relative flex shrink-0 flex-col gap-3.5 px-[6%] pt-[4%] pb-[3.5%]">
         <div className="flex flex-col gap-1.5">
           <span className="type-meta text-text-tertiary">Builder</span>
-          <span className="text-[26px] leading-[1.1] font-medium tracking-[-0.02em] text-white">
+          <span className="text-[clamp(19px,5cqw,26px)] leading-[1.1] font-medium tracking-[-0.02em] text-white">
             {builderName}
           </span>
         </div>
@@ -143,12 +151,12 @@ export function CredentialCard({
             </li>
           ))}
         </ul>
-      </div>
 
-      <footer className="type-meta absolute inset-x-[6%] bottom-[3.5%] flex items-start justify-between text-[rgb(255_255_255/0.35)]">
-        <span>Proof of Build</span>
-        <span>Issuer · {issuer}</span>
-      </footer>
+        <footer className="type-meta flex items-start justify-between gap-4 pt-1 text-[rgb(255_255_255/0.35)]">
+          <span>Proof of Build</span>
+          <span className="text-right">Issuer · {issuer}</span>
+        </footer>
+      </div>
 
       <div
         aria-hidden

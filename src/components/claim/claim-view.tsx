@@ -40,8 +40,11 @@ export function ClaimView({
 
   return (
     <div className="relative">
-      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-start gap-16 px-5 pt-[150px] pb-16 md:px-20 lg:grid-cols-[minmax(0,560px)_minmax(0,520px)]">
-        <div className="animate-rise flex flex-col items-start gap-6">
+      {/* Sized to land inside one screen. This is a page with exactly one
+          thing to do on it, and a Claim button below the fold is a Claim
+          button people do not press. */}
+      <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 items-center gap-10 px-5 pt-20 pb-6 [@media(max-height:820px)]:pt-16 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-14 xl:px-20">
+        <div className="animate-rise flex flex-col items-start gap-4 [@media(max-height:820px)]:gap-3">
           {done ? (
             <Badge>
               {done.alreadyClaimed ? "Already onchain" : "Verified onchain"}
@@ -52,10 +55,10 @@ export function ClaimView({
             </Badge>
           )}
 
-          <h1 className="type-h1 text-text-primary">
+          <h1 className="type-h2 text-text-primary">
             {done ? "Proof created." : payload.n}
           </h1>
-          <p className="type-body-l text-text-secondary max-w-[520px]">
+          <p className="type-body-m text-text-secondary max-w-[520px]">
             {done
               ? done.alreadyClaimed
                 ? "You already had this one. Here it is."
@@ -63,34 +66,31 @@ export function ClaimView({
               : payload.d}
           </p>
 
-          <dl className="mt-2 w-full">
+          {/* Two to a row: the same facts in half the height. */}
+          <dl className="mt-1 grid w-full grid-cols-2 gap-x-6 sm:gap-x-10">
             <Row label="Builder">{payload.builder}</Row>
             <Row label="Team">{payload.team_names.join(" · ")}</Row>
-            <div className="flex w-full gap-10">
-              <Row label="Track" className="flex-1">
-                {track}
-              </Row>
-              <Row label="Event" className="flex-1">
-                {event.name} {event.year}
-              </Row>
-            </div>
+            <Row label="Track">{track}</Row>
+            <Row label="Event">
+              {event.name} {event.year}
+            </Row>
             {payload.gh && (
-              <Row label="GitHub" muted>
+              <Row label="GitHub" muted className="col-span-2 sm:col-span-1">
                 {payload.gh}
               </Row>
             )}
             {payload.live && (
-              <Row label="Demo" muted>
+              <Row label="Demo" muted className="col-span-2 sm:col-span-1">
                 {payload.live}
               </Row>
             )}
-            <Row label="Wallet" mono>
+            <Row label="Wallet" mono className="col-span-2">
               {address ?? "Not connected"}
             </Row>
           </dl>
 
           {done ? (
-            <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="mt-4 flex flex-wrap items-center gap-4">
               <ButtonLink href={`/b/${done.buildSlug}`}>View proof</ButtonLink>
               <a
                 href={explorerUrl("tx", done.signature, CLUSTER)}
@@ -102,7 +102,7 @@ export function ClaimView({
               </a>
             </div>
           ) : (
-            <div className="mt-6 flex flex-col gap-3.5">
+            <div className="mt-4 flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-5">
                 <Button
                   className="px-8 py-[18px] text-[17px]"
@@ -131,8 +131,10 @@ export function ClaimView({
           )}
         </div>
 
+        {/* Capped by the height that is left rather than by width — the card
+            is what decides whether this page needs a scrollbar. */}
         <CredentialCard
-          className="mx-auto"
+          className="order-first mx-auto h-[min(calc(100svh-11.5rem),560px)] max-h-[46svh] min-h-[430px] w-auto max-w-full lg:order-none lg:max-h-none lg:min-h-0"
           issuer={event.name}
           year={event.year}
           builderName={payload.builder}
@@ -141,7 +143,7 @@ export function ClaimView({
         />
       </div>
 
-      <SiteFooter className="mt-16" />
+      <SiteFooter className="!pt-4 !pb-5" />
     </div>
   );
 }
@@ -160,7 +162,7 @@ function Row({
   className?: string;
 }) {
   return (
-    <div className={`rule flex w-full flex-col gap-1.5 py-4 ${className ?? ""}`}>
+    <div className={`rule flex w-full flex-col gap-1 py-2.5 [@media(max-height:820px)]:py-1.5 ${className ?? ""}`}>
       <dt className="type-meta text-text-tertiary">{label}</dt>
       <dd
         className={
