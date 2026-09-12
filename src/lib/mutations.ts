@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import type { BuildDraft } from "./build-draft";
 import { slugify } from "./slug";
@@ -225,25 +225,25 @@ export async function upsertExternalBuild({
   trackSlug: string;
   githubUrl: string | null;
   demoUrl: string | null;
-}): Promise<{ slug: string; archived: boolean }> {
+}): Promise<{ slug: string }> {
   const db = getDb();
 
+  // Live only. An archived build has released its claim on this external id,
+  // so the next teammate through the same unchanged link starts a fresh
+  // project rather than landing on the retired one.
   const [existing] = await db
-    .select({ slug: schema.builds.slug, archivedAt: schema.builds.archivedAt })
+    .select({ slug: schema.builds.slug })
     .from(schema.builds)
     .where(
       and(
         eq(schema.builds.source, source),
         eq(schema.builds.externalId, externalId),
+        isNull(schema.builds.archivedAt),
       ),
     )
     .limit(1);
 
-  // Archived is reported rather than acted on here: this function's job is to
-  // say which build a link maps to, and the route decides what that means.
-  if (existing) {
-    return { slug: existing.slug, archived: existing.archivedAt !== null };
-  }
+  if (existing) return existing;
 
   const base = slugify(name);
   for (let attempt = 0; attempt < 20; attempt++) {
@@ -266,7 +266,7 @@ export async function upsertExternalBuild({
       .onConflictDoNothing({ target: schema.builds.slug })
       .returning({ slug: schema.builds.slug });
 
-    if (row) return { slug: row.slug, archived: false };
+    if (row) return row;
   }
 
   throw new Error("Could not find a free slug for this build.");

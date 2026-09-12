@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -151,9 +152,18 @@ export const builds = pgTable(
   (table) => [
     index("builds_wallet_idx").on(table.wallet),
     index("builds_event_slug_idx").on(table.eventSlug),
-    // One build per team in the source system. This is what makes four
+    // One *live* build per team in the source system. This is what makes four
     // teammates opening four links land on the same project.
-    uniqueIndex("builds_source_external_idx").on(table.source, table.externalId),
+    //
+    // Partial on purpose. The event's own system signs its links from a team
+    // id that never changes, so the id is the only handle it has — if an
+    // archived build kept its claim on that id, every link that system will
+    // ever issue for that team would keep resolving to the retired record.
+    // Releasing it is what makes archiving mean "that one does not count,
+    // claim again" rather than "this team is finished".
+    uniqueIndex("builds_source_external_idx")
+      .on(table.source, table.externalId)
+      .where(sql`${table.archivedAt} is null`),
   ],
 );
 

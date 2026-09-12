@@ -9,7 +9,7 @@ import {
   upsertExternalBuild,
   type ClaimFailure,
 } from "@/lib/mutations";
-import { getBuildByExternalId, getEvent } from "@/lib/queries";
+import { getEvent } from "@/lib/queries";
 import { slugify } from "@/lib/slug";
 import { CLUSTER_LABEL, IS_MAINNET } from "@/lib/solana/cluster";
 import {
@@ -127,31 +127,21 @@ export async function POST(request: Request) {
     };
     builderName = payload.builder;
 
-    // Archived first, and before the funds check: a builder whose project is
-    // closed should be told that, not that their wallet is short. The read is
-    // free of side effects, so it costs nothing to ask early.
-    const known = await getBuildByExternalId("hackcba", payload.team);
-    if (known?.archived) {
-      return NextResponse.json(
-        {
-          error:
-            "This project has been archived and is no longer issuing credentials. Ask the event for a current link.",
-        },
-        { status: 409 },
-      );
-    }
-
     const shortfall = await affordable({
       draft,
       event,
       siteUrl,
       // The slug this build will get. A collision suffix moves the metadata
       // URI by two characters, which the fee margin covers.
-      buildSlug: known?.slug ?? slugify(payload.n),
+      buildSlug: slugify(payload.n),
       payer: input.payer,
     });
     if (shortfall) return shortfall;
 
+    // An archived build has let go of this team's id, so a link that used to
+    // resolve to it now starts a fresh project instead of being turned away.
+    // The link never changes — the event's system signs it from a team id
+    // that is fixed — so refusing it would retire the team, not the record.
     const build = await upsertExternalBuild({
       source: "hackcba",
       externalId: payload.team,
@@ -163,17 +153,6 @@ export async function POST(request: Request) {
       githubUrl: payload.gh || null,
       demoUrl: payload.live || null,
     });
-    // Asked again because the check above raced the write: archiving between
-    // the two would otherwise mint into a closed project.
-    if (build.archived) {
-      return NextResponse.json(
-        {
-          error:
-            "This project has been archived and is no longer issuing credentials. Ask the event for a current link.",
-        },
-        { status: 409 },
-      );
-    }
     buildSlug = build.slug;
 
     // Claiming twice is a refresh, not an error. Hand back what they have

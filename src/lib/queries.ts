@@ -115,18 +115,29 @@ export async function getBuild(slug: string): Promise<Build | null> {
   return build ?? null;
 }
 
-/** The build a team's project maps to in the event's own system. */
+/**
+ * The build a team's project maps to in the event's own system.
+ *
+ * Live first. An archived build has released its hold on the external id, so
+ * a link the event issues today belongs to whatever replaced it — but the
+ * archived one is still returned when nothing live exists, because a
+ * credential that landed just as the build was archived has to stay
+ * confirmable. Refusing it there would strand a mint that is already onchain
+ * and already paid for.
+ */
 export async function getBuildByExternalId(
   source: "manual" | "hackcba",
   externalId: string,
 ): Promise<Build | null> {
-  const [build] = await selectBuilds(
-    and(
-      eq(schema.builds.source, source),
-      eq(schema.builds.externalId, externalId),
-    ),
+  const match = and(
+    eq(schema.builds.source, source),
+    eq(schema.builds.externalId, externalId),
   );
-  return build ?? null;
+  const [live] = await selectBuilds(and(match, isLive));
+  if (live) return live;
+  // Newest first, so a team archived more than once resolves to its last.
+  const [archived] = await selectBuilds(match);
+  return archived ?? null;
 }
 
 /** The builds a wallet holds a credential for. */
