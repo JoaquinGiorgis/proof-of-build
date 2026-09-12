@@ -85,6 +85,7 @@ export async function POST(request: Request) {
   let draft: BuildDraft;
   let buildSlug: string;
   let builderName: string;
+  let event: Awaited<ReturnType<typeof getEvent>>;
 
   if ("token" in input) {
     const verdict = verifyClaimToken(input.token);
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     }
     const payload = verdict.payload;
 
-    const event = await getEvent(payload.ev);
+    event = await getEvent(payload.ev);
     if (!event) {
       return NextResponse.json({ error: "unknown event" }, { status: 404 });
     }
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
       );
     }
   } else {
-    const event = await getEvent(input.draft.eventSlug);
+    event = await getEvent(input.draft.eventSlug);
     if (!event) {
       return NextResponse.json({ error: "unknown event" }, { status: 404 });
     }
@@ -183,10 +184,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const event = await getEvent(draft.eventSlug);
     const prepared = await prepareCredential({
       draft,
-      event: event!,
+      event,
       payer: input.payer,
       siteUrl,
       buildSlug,

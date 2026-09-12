@@ -5,6 +5,9 @@ import { getDb, schema } from "@/db/client";
 import type { BuildDraft } from "./build-draft";
 import { slugify } from "./slug";
 
+/** A database handle: the pool, or a transaction already in flight. */
+type Executor = Pick<ReturnType<typeof getDb>, "select">;
+
 /**
  * The only writes in the product, and both of them run from an API route that
  * has already re-validated its input. There is no path from the browser to
@@ -32,9 +35,18 @@ export class ClaimError extends Error {
  * is `redeemClaimCode`, which is the one that counts — never gate a signature
  * on a check that the client could have skipped.
  */
-export async function peekClaimCode(code: string, eventSlug: string) {
-  const db = getDb();
-  const [row] = await db
+export async function peekClaimCode(
+  code: string,
+  eventSlug: string,
+  /**
+   * Run on an existing transaction when there is one. Checking out a second
+   * connection while a transaction still holds the first is how a small pool
+   * deadlocks: with `max: 4`, four simultaneous failed claims each hold one
+   * and wait for a fifth that cannot exist.
+   */
+  executor: Executor = getDb(),
+) {
+  const [row] = await executor
     .select()
     .from(schema.claimCodes)
     .where(eq(schema.claimCodes.code, normalizeCode(code)))
@@ -100,7 +112,7 @@ export async function createBuildDraft({
     if (!spent) {
       // Tell the builder which of the four it was, but only after the write
       // failed — the distinction is for them, not for someone probing codes.
-      const peek = await peekClaimCode(code, draft.eventSlug);
+      const peek = await peekClaimCode(code, draft.eventSlug, tx);
       throw new ClaimError(peek.ok ? "exhausted" : peek.reason);
     }
 
@@ -184,10 +196,14 @@ function isUniqueViolation(cause: unknown) {
  * Upserts the build a signed claim link describes.
  *
  * Keyed on the team's id in the event's system, so four teammates opening four
- * links land on one project rather than four copies of it. The project's
- * details are refreshed each time: the event's system is the source of truth
- * for what the team shipped, and a teammate claiming later should not get a
- * stale snapshot.
+ * links land on one project rather than four copies of it.
+ *
+ * An existing build is returned untouched rather than refreshed. A link stays
+ * valid for weeks, so "refresh from the token" means any older link rewrites
+ * whatever the build currently says — a teammate opening yesterday's email
+ * would revert a description the team fixed this morning. Freezing the content
+ * at the first claim is also the truer record: the metadata minted into that
+ * first credential is immutable, and the page should agree with it.
  */
 export async function upsertExternalBuild({
   source,
@@ -223,13 +239,7 @@ export async function upsertExternalBuild({
     )
     .limit(1);
 
-  if (existing) {
-    await db
-      .update(schema.builds)
-      .set({ name, tagline, team, trackSlug, githubUrl, demoUrl })
-      .where(eq(schema.builds.slug, existing.slug));
-    return existing;
-  }
+  if (existing) return existing;
 
   const base = slugify(name);
   for (let attempt = 0; attempt < 20; attempt++) {
