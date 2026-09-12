@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { ClaimProofCta } from "@/components/claim-proof-cta";
+import { NinjaTurntable } from "@/components/ninja-turntable";
 import { Badge } from "@/components/ui/primitives";
 import { getEvent, listBuilds } from "@/lib/queries";
 
@@ -58,16 +58,17 @@ export default async function EventPage({ params }: PageProps<"/events/[slug]">)
                 aria-hidden
                 className="absolute bottom-[4%] left-1/2 h-[78px] w-[420px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse,rgb(0_0_0/0.75)_0%,transparent_70%)] blur-xl"
               />
-              <div className="animate-float absolute inset-0">
-                <Image
-                  src={event.artwork}
-                  alt={`${event.name} ${event.year} credential artwork`}
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 600px, 0px"
-                  className="object-contain drop-shadow-[0_40px_60px_rgb(0_0_0/0.6)]"
-                />
-              </div>
+              {/* Turning, not glinting: the rotation already catches the
+                  light, and running both reads as two effects fighting. */}
+              <NinjaTurntable
+                poster={event.artwork}
+                mp4="/assets/ninja-360/ninja-spin.mp4"
+                webm="/assets/ninja-360/ninja-spin.webm"
+                alt={`${event.name} ${event.year} credential artwork`}
+                priority
+                sizes="(min-width: 1024px) 600px, 0px"
+                className="animate-float absolute inset-0"
+              />
             </div>
           )}
         </div>

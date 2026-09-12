@@ -59,6 +59,19 @@
     }
   }
 
+  /* The glint that crosses the ninja. Travels from below-left to above-right
+     so it reads as light sweeping over a standing figure, then waits: the
+     band crosses in ~14% of the cycle and the other 86% is still. */
+  @keyframes glint {
+    0% {
+      transform: translate3d(-400%, 0, 0) rotate(18deg);
+    }
+    16%,
+    100% {
+      transform: translate3d(400%, 0, 0) rotate(18deg);
+    }
+  }
+
   @keyframes rise {
     from {
       opacity: 0;
@@ -211,6 +224,38 @@ body {
    without turning the pill into a solid bar. */
 @utility glass-nav {
   background: rgb(255 255 255 / 0.05);
+}
+
+/* The band itself. Overflow-hidden on the parent would clip the mask, so the
+   band is sized larger than the box and kept inside by the mask instead. */
+@utility ninja-glint {
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    /* A narrow bar, not a full-size box with a gradient in it: across a 220%
+       box the stops have to be huge, and the band comes out as an even wash
+       over the whole figure rather than a streak crossing it. */
+    top: -50%;
+    left: 50%;
+    width: 26%;
+    height: 200%;
+    /* Restrained on purpose: a highlight travelling over metal, not a flash.
+       Much above this and the band bleaches the NX on the ninja's chest,
+       which is the one thing on the figure that has to stay readable. */
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 246 224 / 0.14) 35%,
+      rgb(255 252 240 / 0.42) 50%,
+      rgb(255 246 224 / 0.14) 65%,
+      transparent
+    );
+    /* Additive, so the gold underneath keeps its colour and only brightens. */
+    mix-blend-mode: screen;
+    filter: blur(3px);
+    animation: glint 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
 }
 
 @utility glass-hover {

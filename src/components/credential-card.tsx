@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRef } from "react";
 import { cn } from "@/lib/cn";
+import { Ninja } from "./ninja";
+import { NinjaTurntable } from "./ninja-turntable";
 
 /**
  * Figma: Proof · Credential card 11:67.
@@ -23,6 +24,8 @@ export type CredentialCardProps = {
   className?: string;
   /** Turn the tilt off where the card is a small thumbnail in a grid. */
   interactive?: boolean;
+  /** Play the 360 loop instead of the still. Off for thumbnails. */
+  turntable?: boolean;
 };
 
 const MAX_TILT = 3;
@@ -35,6 +38,7 @@ export function CredentialCard({
   tags,
   className,
   interactive = true,
+  turntable = true,
 }: CredentialCardProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -90,14 +94,30 @@ export function CredentialCard({
             aria-hidden
             className="absolute bottom-[-6%] left-1/2 h-[47px] w-[260px] max-w-[80%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse,rgb(0_0_0/0.7)_0%,transparent_70%)] blur-md"
           />
-          <Image
-            src={artwork}
-            alt=""
-            fill
-            priority={interactive}
-            sizes="(min-width: 1024px) 330px, 60vw"
-            className="object-contain drop-shadow-[0_30px_50px_rgb(0_0_0/0.6)]"
-          />
+          {/* The same turning ninja as the event page. Screen-blending inside
+              the card composites it onto the card's own gradient, which is
+              what we want here — the blend is scoped by the card's transform.
+
+              Thumbnails keep the still: a grid of cards each decoding a video
+              is a lot of work for something the size of a stamp. */}
+          {turntable ? (
+            <NinjaTurntable
+              poster={artwork}
+              mp4="/assets/ninja-360/ninja-spin.mp4"
+              webm="/assets/ninja-360/ninja-spin.webm"
+              priority={interactive}
+              sizes="(min-width: 1024px) 330px, 60vw"
+              className="absolute inset-0"
+            />
+          ) : (
+            <Ninja
+              src={artwork}
+              priority={interactive}
+              sizes="(min-width: 1024px) 330px, 60vw"
+              className="absolute inset-0"
+              float={false}
+            />
+          )}
         </div>
       )}
 
