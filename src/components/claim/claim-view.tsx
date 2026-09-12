@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/primitives";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import type { ClaimPayload } from "@/lib/claim-link";
 import { explorerUrl, type EventRecord } from "@/lib/domain";
-import { CLUSTER } from "@/lib/solana/cluster";
+import { CLAIM_COST_SOL, CLUSTER, CLUSTER_LABEL } from "@/lib/solana/cluster";
 
 /**
  * What a builder sees when they open the link their event sent them: the
@@ -116,7 +116,7 @@ export function ClaimView({
                   {address ? "Claim Proof" : "Connect wallet"}
                 </Button>
                 <span className="type-meta text-text-tertiary">
-                  One signature · Solana devnet · ~0.002 SOL
+                  {`One signature · Solana ${CLUSTER_LABEL} · ~${CLAIM_COST_SOL} SOL`}
                 </span>
               </div>
               {mint.error && (

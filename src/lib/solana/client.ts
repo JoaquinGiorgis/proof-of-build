@@ -13,12 +13,12 @@ import { walletSigner } from "@solana/kit-plugin-wallet";
  * endpoint rate-limits exactly during a demo (see docs/SOLANA-RULES.md).
  */
 
-import { CHAIN, CLUSTER } from "./cluster";
+import { CHAIN, CLUSTER, DEFAULT_RPC_URL } from "./cluster";
 
 export { CHAIN, CLUSTER };
 
 const RPC_URL =
-  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? DEFAULT_RPC_URL;
 
 let client: ReturnType<typeof buildClient> | undefined;
 

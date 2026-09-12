@@ -1,4 +1,5 @@
 import { cn } from "@/lib/cn";
+import { CLUSTER_LABEL } from "@/lib/solana/cluster";
 
 /** Figma: Footer 5:45. */
 export function SiteFooter({ className }: { className?: string }) {
@@ -11,7 +12,7 @@ export function SiteFooter({ className }: { className?: string }) {
     >
       <span className="type-meta text-text-tertiary">Proof of Build</span>
       <span className="type-meta text-text-tertiary">
-        Onchain infrastructure · Solana devnet
+        Onchain infrastructure · Solana {CLUSTER_LABEL}
       </span>
     </footer>
   );

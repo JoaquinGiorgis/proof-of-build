@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import type { UiWallet } from "@wallet-standard/ui";
+import { CLUSTER_LABEL } from "@/lib/solana/cluster";
 import { useWallet } from "./wallet-provider";
 
 /** Figma: Wallet modal 17:148. */
@@ -81,7 +82,7 @@ export function WalletModal() {
               Connect wallet
             </h2>
             <p className="type-meta text-text-tertiary">
-              Solana devnet · Wallet Standard
+              Solana {CLUSTER_LABEL} · Wallet Standard
             </p>
           </div>
           <button

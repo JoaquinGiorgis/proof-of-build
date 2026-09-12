@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import { CLUSTER_LABEL } from "@/lib/solana/cluster";
 import { MINT_STAGES, type MintStage } from "./use-mint";
 
 /**
@@ -15,23 +16,23 @@ const COPY: Record<Exclude<MintStage, "idle" | "done">, {
 }> = {
   preparing: {
     title: "Preparing proof…",
-    detail: "Building the transaction · Devnet",
+    detail: `Building the transaction · ${CLUSTER_LABEL}`,
   },
   opening: {
     title: "Opening your wallet…",
-    detail: "Approve the transaction in your wallet · Devnet",
+    detail: `Approve the transaction in your wallet · ${CLUSTER_LABEL}`,
   },
   awaiting: {
     title: "Awaiting signature…",
-    detail: "Approve the transaction in your wallet · Devnet",
+    detail: `Approve the transaction in your wallet · ${CLUSTER_LABEL}`,
   },
   sending: {
     title: "Sending to Solana…",
-    detail: "Broadcasting the transaction · Devnet",
+    detail: `Broadcasting the transaction · ${CLUSTER_LABEL}`,
   },
   confirming: {
     title: "Confirming…",
-    detail: "Waiting for the cluster to confirm · Devnet",
+    detail: `Waiting for the cluster to confirm · ${CLUSTER_LABEL}`,
   },
 };
 

@@ -97,7 +97,7 @@ export function shortAddress(address: string, lead = 4, tail = 4) {
 export function explorerUrl(
   kind: "tx" | "address",
   value: string,
-  cluster: Credential["cluster"] = "devnet",
+  cluster: Credential["cluster"],
 ) {
   const suffix = cluster === "devnet" ? "?cluster=devnet" : "";
   return `https://explorer.solana.com/${kind}/${value}${suffix}`;

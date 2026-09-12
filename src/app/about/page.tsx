@@ -1,3 +1,4 @@
+import { CLUSTER_LABEL } from "@/lib/solana/cluster";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata = { title: "About" };
@@ -25,7 +26,7 @@ const FACTS = [
   },
   {
     label: "Which network",
-    body: "Solana devnet. Nobody deploys a hackathon project to mainnet.",
+    body: `Solana ${CLUSTER_LABEL}. The builder pays the rent for their own credential — a few thousandths of a SOL — and nobody else can pay it for them.`,
   },
 ];
 

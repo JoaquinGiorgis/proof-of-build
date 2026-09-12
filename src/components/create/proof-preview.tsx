@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { formatTeam, type BuildDraft } from "@/lib/build-draft";
 import { shortAddress, type EventRecord } from "@/lib/domain";
+import { CLAIM_COST_SOL, CLUSTER_LABEL } from "@/lib/solana/cluster";
 import { useMint } from "./use-mint";
 import { MintProgress } from "./mint-progress";
 import { ProofCreated } from "./proof-created";
@@ -95,7 +96,7 @@ export function ProofPreview({
               {address ? "Claim Proof" : "Connect wallet"}
             </Button>
             <span className="type-meta text-text-tertiary">
-              One signature · Solana devnet · ~0.002 SOL
+              {`One signature · Solana ${CLUSTER_LABEL} · ~${CLAIM_COST_SOL} SOL`}
             </span>
           </div>
           {mint.error && (

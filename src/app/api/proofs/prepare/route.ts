@@ -10,7 +10,8 @@ import {
   type ClaimFailure,
 } from "@/lib/mutations";
 import { getEvent } from "@/lib/queries";
-import { prepareCredential } from "@/lib/solana/credential";
+import { CLUSTER_LABEL, IS_MAINNET } from "@/lib/solana/cluster";
+import { checkPayerFunds, prepareCredential } from "@/lib/solana/credential";
 
 /**
  * Builds and issuer-signs a credential transaction.
@@ -81,6 +82,19 @@ export async function POST(request: Request) {
 
   const input = parsed.data;
   const siteUrl = siteUrlFrom(request);
+
+  // Checked first, before the build is written and before the wallet opens:
+  // the builder pays the rent, and finding that out from a wallet that will
+  // not simulate is a bad way to learn it.
+  const funds = await checkPayerFunds(input.payer);
+  if (!funds.ok) {
+    return NextResponse.json(
+      {
+        error: `This wallet has ${formatSol(funds.lamports)} SOL on ${CLUSTER_LABEL} and the claim costs about ${formatSol(funds.needed)}.${IS_MAINNET ? " Add some SOL to it." : " Top it up at faucet.solana.com."} Check the wallet is on ${CLUSTER_LABEL}.`,
+      },
+      { status: 402 },
+    );
+  }
 
   let draft: BuildDraft;
   let buildSlug: string;
@@ -199,6 +213,12 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+/** Lamports as SOL, without a tail of zeros: 6000000n -> "0.006". */
+function formatSol(lamports: bigint) {
+  const sol = Number(lamports) / 1_000_000_000;
+  return sol === 0 ? "0" : sol.toFixed(4).replace(/\.?0+$/, "");
 }
 
 function siteUrlFrom(request: Request) {

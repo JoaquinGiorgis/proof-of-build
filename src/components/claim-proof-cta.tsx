@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
+import { CLUSTER_LABEL } from "@/lib/solana/cluster";
 
 /** Figma: Event CTA 6:31 — button plus the cluster/connection meta beside it. */
 export function ClaimProofCta({ eventSlug }: { eventSlug: string }) {
@@ -20,7 +21,7 @@ export function ClaimProofCta({ eventSlug }: { eventSlug: string }) {
         Claim your Proof
       </Button>
       <span className="type-meta text-text-tertiary">
-        {address ? "Wallet connected · Devnet" : "Connect a wallet · Devnet"}
+        {address ? "Wallet connected" : "Connect a wallet"} · {CLUSTER_LABEL}
       </span>
     </>
   );

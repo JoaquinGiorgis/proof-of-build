@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@solana/kit";
 import { rpcGetMinimumBalance, solanaRpcConnection } from "@solana/kit-plugin-rpc";
+import { DEFAULT_RPC_URL } from "./cluster";
 
 /**
  * The server-side Kit client. RPC only — the server never holds a payer,
@@ -14,7 +15,7 @@ import { rpcGetMinimumBalance, solanaRpcConnection } from "@solana/kit-plugin-rp
 export const RPC_URL =
   process.env.SOLANA_RPC_URL ??
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-  "https://api.devnet.solana.com";
+  DEFAULT_RPC_URL;
 
 let client: ReturnType<typeof build> | undefined;
 

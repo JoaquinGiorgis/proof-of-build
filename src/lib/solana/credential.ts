@@ -24,6 +24,7 @@ import {
 import type { BuildDraft } from "@/lib/build-draft";
 import type { EventRecord } from "@/lib/domain";
 import { getIssuerSigner } from "./issuer";
+import { CLAIM_COST_LAMPORTS } from "./cluster";
 import { getServerClient } from "./server-client";
 
 /**
@@ -163,15 +164,39 @@ export async function prepareCredential({
 export async function confirmCredential(signature: string, mint: string) {
   const client = getServerClient();
 
-  const { value: statuses } = await client.rpc
-    .getSignatureStatuses([signature as never], {
-      searchTransactionHistory: true,
-    })
-    .send();
+  // A signature the wallet just broadcast is not visible to the RPC the
+  // instant it comes back, so asking once and calling it missing turns the
+  // happy path into "Transaction not found." Poll for a little while, and only
+  // then decide. A real failure — `err` set — is final and returns straight
+  // away; there is nothing to wait for.
+  const deadline = Date.now() + 25_000;
+  let status: Awaited<
+    ReturnType<ReturnType<typeof client.rpc.getSignatureStatuses>["send"]>
+  >["value"][number] = null;
 
-  const status = statuses[0];
+  for (let attempt = 0; ; attempt++) {
+    ({
+      value: [status],
+    } = await client.rpc
+      .getSignatureStatuses([signature as never], {
+        searchTransactionHistory: true,
+      })
+      .send());
+
+    if (status?.err) {
+      return { confirmed: false as const, reason: "failed onchain" };
+    }
+    if (
+      status?.confirmationStatus === "confirmed" ||
+      status?.confirmationStatus === "finalized"
+    ) {
+      break;
+    }
+    if (Date.now() >= deadline) break;
+    await sleep(Math.min(500 * 2 ** attempt, 2_000));
+  }
+
   if (!status) return { confirmed: false as const, reason: "not found" };
-  if (status.err) return { confirmed: false as const, reason: "failed onchain" };
   if (
     status.confirmationStatus !== "confirmed" &&
     status.confirmationStatus !== "finalized"
@@ -199,6 +224,31 @@ export async function confirmCredential(signature: string, mint: string) {
   }
 
   return { confirmed: true as const, slot: status.slot };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Checks the builder can actually pay before the wallet ever opens.
+ *
+ * Without this the first thing they see is Phantom refusing to simulate, which
+ * says "insufficient SOL" without saying on which network — and the devnet
+ * balance is the one that matters, not the mainnet one they are looking at.
+ */
+export async function checkPayerFunds(payer: string) {
+  const client = getServerClient();
+  const { value: lamports } = await client.rpc
+    .getBalance(address(payer), { commitment: "confirmed" })
+    .send();
+
+  if (lamports >= CLAIM_COST_LAMPORTS) return { ok: true as const };
+  return {
+    ok: false as const,
+    lamports,
+    needed: CLAIM_COST_LAMPORTS,
+  };
 }
 
 /** Token-2022 metadata caps `name` at 32 bytes; the rest we keep sane by hand. */
