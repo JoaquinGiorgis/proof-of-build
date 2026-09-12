@@ -4,13 +4,14 @@ import { ConnectCta } from "@/components/connect-cta";
 import { ButtonLink } from "@/components/ui/button";
 import { listEvents } from "@/lib/queries";
 
-/** Figma: 01 Home · Desktop 5:2. */
-
-const STEPS = [
-  { label: "01 — Build", title: "Create something real." },
-  { label: "02 — Prove", title: "Register the build onchain." },
-  { label: "03 — Keep", title: "Carry your proof anywhere." },
-];
+/**
+ * Figma: 01 Home · Desktop 5:2.
+ *
+ * The hero and nothing else. The three "01 Build / 02 Prove / 03 Keep" panels
+ * that used to sit under it explained a product the hero already states in two
+ * lines, and their only real effect was to put a scrollbar on the one page
+ * that should not have one.
+ */
 
 export default async function HomePage() {
   // The eyebrow names the most recent issuer rather than a hardcoded event —
@@ -20,10 +21,13 @@ export default async function HomePage() {
   const featured = events[0];
 
   return (
+    /* One screen. The section takes the viewport minus the footer, and the
+       grid centres inside it, so the gap under the navbar is whatever is left
+       over rather than a number picked to look right at one window size. */
     <>
-      <section className="relative overflow-hidden">
-        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-16 px-5 pt-[180px] pb-24 md:px-20 lg:grid-cols-[minmax(0,599px)_minmax(0,520px)] lg:pt-[236px] lg:pb-40">
-          <div className="animate-rise flex flex-col items-start gap-7">
+      <section className="relative flex min-h-[calc(100svh-7rem)] items-center overflow-hidden">
+        <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 items-center gap-10 px-5 pt-24 pb-10 [@media(max-height:820px)]:pt-20 md:px-20 lg:grid-cols-[minmax(0,599px)_minmax(0,520px)] lg:gap-16 lg:pt-20">
+          <div className="animate-rise flex flex-col items-start gap-6 [@media(max-height:820px)]:gap-4">
             <div className="flex items-center gap-3">
               <span
                 aria-hidden
@@ -36,13 +40,13 @@ export default async function HomePage() {
               </span>
             </div>
 
-            <h1 className="type-hero text-text-primary">
+            <h1 className="type-hero text-text-primary [@media(max-height:820px)]:text-[clamp(3rem,6.5vw,5.5rem)]">
               Proof of
               <br />
               Build
             </h1>
 
-            <p className="type-h2 text-text-secondary">
+            <p className="type-h2 text-text-secondary [@media(max-height:820px)]:text-[clamp(1.75rem,3vw,2.25rem)]">
               Ship something.
               <br />
               Prove you built it.
@@ -53,7 +57,10 @@ export default async function HomePage() {
             </p>
 
             <div className="flex flex-wrap items-center gap-5">
-              <ConnectCta connectedLabel="Claim your Proof" connectedHref="/events" />
+              <ConnectCta
+                connectedLabel="Claim your Proof"
+                connectedHref="/events"
+              />
               <ButtonLink href="/explore" variant="ghost">
                 Explore builds
                 <span
@@ -70,7 +77,7 @@ export default async function HomePage() {
               object that says what the product does. Screen-blended and masked
               because the render's black is not pure 0: without it the plate
               reads as a grey rectangle sitting on top of the shader. */}
-          <div className="relative mx-auto hidden aspect-[1856/2304] w-full max-w-[560px] lg:block">
+          <div className="relative mx-auto hidden aspect-[1856/2304] h-[min(560px,calc(100svh-16rem))] w-auto lg:block">
             <div
               aria-hidden
               className="absolute -inset-[12%] rounded-full bg-[radial-gradient(circle,rgb(255_255_255/0.08)_0%,transparent_65%)] blur-3xl"
@@ -89,18 +96,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-10 px-5 pb-28 md:grid-cols-3 md:px-10">
-        {STEPS.map((step) => (
-          <div key={step.label} className="rule flex flex-col gap-5 pt-7">
-            <span className="type-meta-l text-text-tertiary">{step.label}</span>
-            <h2 className="type-h3 text-text-primary max-w-[360px]">
-              {step.title}
-            </h2>
-          </div>
-        ))}
-      </section>
-
-      <SiteFooter />
+      <SiteFooter className="!pt-0 !pb-6" />
     </>
   );
 }
