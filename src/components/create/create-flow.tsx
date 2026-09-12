@@ -198,7 +198,7 @@ export function CreateFlow({ event }: { event: EventRecord }) {
                 />
                 <Field
                   label="Demo"
-                  placeholder="proof-of-build.vercel.app"
+                  placeholder="proof-of-build-ten.vercel.app"
                   hint="Optional — a link the judges can open."
                   value={draft.demoUrl}
                   onChange={(event) => set("demoUrl", event.target.value)}
